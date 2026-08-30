@@ -119,6 +119,47 @@
       color: var(--text-secondary);
     }
 
+    .sync-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 18px 0 8px;
+    }
+
+    .sync-status {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .sync-status.ok { color: var(--saldo-plus); }
+    .sync-status.error { color: var(--saldo-minus); }
+    .sync-status.busy { color: var(--debit); }
+
+    .sync-btn {
+      padding: 8px 14px;
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--text-secondary);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .sync-btn:hover {
+      background: var(--card-hover);
+      color: var(--text);
+    }
+
+    .sql-box {
+      width: 100%;
+      min-height: 140px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+
     .contractors {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -729,10 +770,48 @@
     </div>
   </div>
 
+  <div class="overlay" id="sync-overlay" role="dialog" aria-modal="true">
+    <form class="modal" id="sync-form">
+      <h2>Синхронизация</h2>
+      <p class="confirm-text">Ключ проекта уже задан. Осталось один раз создать таблицу: выполните SQL ниже в SQL Editor или сделайте supabase db push.</p>
+      <div class="field">
+        <label for="field-sync-url">Адрес проекта</label>
+        <input id="field-sync-url" type="url" />
+      </div>
+      <div class="field">
+        <label for="field-sync-key">Ключ anon (public)</label>
+        <input id="field-sync-key" type="text" placeholder="Project Settings → API → anon public" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="field-sync-sql">SQL для таблицы (вставить в SQL Editor)</label>
+        <textarea id="field-sync-sql" class="sql-box" readonly></textarea>
+      </div>
+      <div class="error" id="sync-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="sync-cancel">Отмена</button>
+        <button type="submit" class="btn-primary">Сохранить и синхронизировать</button>
+      </div>
+    </form>
+  </div>
+
   <div class="toast" id="toast"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
+    const SYNC_KEY = "finansovyy-uchet-sync";
+    const DEFAULT_SYNC_URL = "https://sqsnhapkgtdjjkiexfrn.supabase.co";
+    const DEFAULT_SYNC_KEY = "sb_publishable_2wQo7nf5W4eBQmiPorV9Kg_u-gjFYb-";
+    const SYNC_SQL = `create table if not exists public.finance_state (
+  id text primary key,
+  payload jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.finance_state enable row level security;
+drop policy if exists finance_state_public on public.finance_state;
+create policy finance_state_public on public.finance_state
+  for all using (true) with check (true);
+grant all on table public.finance_state to anon, authenticated, public;`;
     const MONTHS = [
       "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
       "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
@@ -807,12 +886,146 @@
       }
     }
 
-    function saveData(data) {
+    function saveData(data, options) {
+      data.updatedAt = Date.now();
+      if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      if (!options || !options.skipRemote) schedulePush();
     }
 
     let db = loadData();
-    saveData(db);
+    if (!Array.isArray(db.deletedRecordIds)) db.deletedRecordIds = [];
+    saveData(db, { skipRemote: true });
+
+    const syncState = { status: "busy", message: "Подключение к облаку…" };
+
+    function getSyncConfig() {
+      try {
+        const raw = localStorage.getItem(SYNC_KEY);
+        const cfg = raw ? JSON.parse(raw) : {};
+        return {
+          url: (cfg.url || DEFAULT_SYNC_URL).replace(/\/$/, ""),
+          key: cfg.key || DEFAULT_SYNC_KEY
+        };
+      } catch (err) {
+        return { url: DEFAULT_SYNC_URL, key: DEFAULT_SYNC_KEY };
+      }
+    }
+
+    function setSyncConfig(cfg) {
+      localStorage.setItem(SYNC_KEY, JSON.stringify(cfg));
+      supabaseClient = null;
+    }
+
+    let supabaseClient = null;
+
+    function getSupabase() {
+      const { url, key } = getSyncConfig();
+      if (!url || !key) return null;
+      if (!window.supabase || !window.supabase.createClient) {
+        throw new Error("Клиент Supabase не загрузился. Проверьте интернет.");
+      }
+      if (!supabaseClient) supabaseClient = window.supabase.createClient(url, key);
+      return supabaseClient;
+    }
+
+    function formatSupabaseError(error) {
+      const text = [error?.message, error?.hint, error?.code].filter(Boolean).join(" ");
+      if (/finance_state/i.test(text) && /schema cache|does not exist|PGRST205/i.test(text)) {
+        return "Таблица finance_state не найдена. Выполните SQL из настроек.";
+      }
+      return error?.message || text || "Ошибка облака";
+    }
+
+    function setSyncStatus(status, message) {
+      syncState.status = status;
+      syncState.message = message;
+      const el = document.getElementById("sync-status");
+      if (!el) return;
+      el.className = "sync-status " + status;
+      el.textContent = message;
+    }
+
+    function mergeFinanceData(local, remote) {
+      const out = defaultData();
+      const deleted = new Set([...(local.deletedRecordIds || []), ...(remote.deletedRecordIds || [])]);
+      const names = new Set([
+        ...Object.keys(local.contractors || {}),
+        ...Object.keys(remote.contractors || {})
+      ]);
+      names.forEach((name) => {
+        const map = new Map();
+        const remoteList = remote.contractors?.[name]?.records || [];
+        const localList = local.contractors?.[name]?.records || [];
+        remoteList.concat(localList).forEach((rec) => {
+          if (!rec || !rec.id || deleted.has(rec.id)) return;
+          map.set(rec.id, migrateRecord(rec));
+        });
+        out.contractors[name] = { records: [...map.values()] };
+      });
+      if (!out.contractors["Даня"]) out.contractors["Даня"] = { records: [] };
+      if (!out.contractors["Максюшка"]) out.contractors["Максюшка"] = { records: [] };
+      out.deletedRecordIds = [...deleted];
+      out.updatedAt = Date.now();
+      return out;
+    }
+
+    async function fetchRemote() {
+      const client = getSupabase();
+      if (!client) return null;
+      const { data, error } = await client
+        .from("finance_state")
+        .select("payload,updated_at")
+        .eq("id", "main")
+        .maybeSingle();
+      if (error) throw new Error(formatSupabaseError(error));
+      return data;
+    }
+
+    async function pushRemote() {
+      const client = getSupabase();
+      if (!client) return;
+      setSyncStatus("busy", "Сохранение в облако…");
+      const { error } = await client.from("finance_state").upsert({
+        id: "main",
+        payload: db,
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw new Error(formatSupabaseError(error));
+      setSyncStatus("ok", "Синхронизировано с облаком");
+    }
+
+    let pushTimer = null;
+    function schedulePush() {
+      if (!getSyncConfig().key) return;
+      clearTimeout(pushTimer);
+      pushTimer = setTimeout(() => {
+        pushRemote().catch((err) => setSyncStatus("error", err.message || "Ошибка синхронизации"));
+      }, 400);
+    }
+
+    async function syncNow() {
+      const { key } = getSyncConfig();
+      if (!key) {
+        setSyncStatus("off", "Синхронизация не настроена");
+        openSyncModal();
+        return;
+      }
+      setSyncStatus("busy", "Синхронизация…");
+      try {
+        const remote = await fetchRemote();
+        if (remote && remote.payload) {
+          db = mergeFinanceData(db, remote.payload);
+          saveData(db, { skipRemote: true });
+          render();
+        }
+        await pushRemote();
+        showToast("Данные синхронизированы");
+      } catch (err) {
+        setSyncStatus("error", err.message || "Ошибка синхронизации");
+        showToast("Не удалось синхронизировать");
+      }
+    }
 
     function uid() {
       return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -1002,6 +1215,11 @@
         <div class="hero">
           <h1>Финансовый учёт</h1>
           <p>Контрагенты и дебиторская задолженность</p>
+          <div class="sync-bar">
+            <span class="sync-status ${syncState.status}" id="sync-status">${escapeHtml(syncState.message)}</span>
+            <button type="button" class="sync-btn" id="sync-now">↻ Синхронизировать</button>
+            <button type="button" class="sync-btn" id="sync-settings">Настройки синхронизации</button>
+          </div>
         </div>
         <div class="contractors">
           ${cards}
@@ -1169,6 +1387,8 @@
 
     function bindView() {
       document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
+      document.getElementById("sync-now")?.addEventListener("click", () => { syncNow(); });
+      document.getElementById("sync-settings")?.addEventListener("click", openSyncModal);
       document.getElementById("back-home")?.addEventListener("click", () => {
         state.view = "home";
         state.contractor = null;
@@ -1413,6 +1633,8 @@
     function confirmDelete() {
       const id = state.pendingDeleteId;
       if (!id) return;
+      db.deletedRecordIds = db.deletedRecordIds || [];
+      if (!db.deletedRecordIds.includes(id)) db.deletedRecordIds.push(id);
       db.contractors[state.contractor].records = currentRecords().filter((r) => r.id !== id);
       saveData(db);
       state.pendingDeleteId = null;
@@ -1430,6 +1652,35 @@
 
     function closeContractorModal() {
       document.getElementById("contractor-overlay").classList.remove("open");
+    }
+
+    function openSyncModal() {
+      const cfg = getSyncConfig();
+      document.getElementById("field-sync-url").value = cfg.url || DEFAULT_SYNC_URL;
+      document.getElementById("field-sync-key").value = cfg.key || "";
+      document.getElementById("field-sync-sql").value = SYNC_SQL;
+      document.getElementById("sync-error").classList.remove("show");
+      document.getElementById("sync-overlay").classList.add("open");
+      document.getElementById("field-sync-key").focus();
+    }
+
+    function closeSyncModal() {
+      document.getElementById("sync-overlay").classList.remove("open");
+    }
+
+    async function submitSync(event) {
+      event.preventDefault();
+      const error = document.getElementById("sync-error");
+      const url = document.getElementById("field-sync-url").value.trim().replace(/\/$/, "");
+      const key = document.getElementById("field-sync-key").value.trim();
+      if (!url || !key) {
+        error.textContent = "Укажите адрес проекта и ключ anon";
+        error.classList.add("show");
+        return;
+      }
+      setSyncConfig({ url, key });
+      closeSyncModal();
+      await syncNow();
     }
 
     function submitContractor(event) {
@@ -1456,6 +1707,7 @@
     function closeOverlays() {
       closeRecordModal();
       closeContractorModal();
+      closeSyncModal();
       document.getElementById("confirm-overlay").classList.remove("open");
       state.pendingDeleteId = null;
     }
@@ -1476,6 +1728,11 @@
     document.getElementById("type-credit").addEventListener("click", () => setRecordType("Кредит"));
     document.getElementById("contractor-form").addEventListener("submit", submitContractor);
     document.getElementById("contractor-cancel").addEventListener("click", closeContractorModal);
+    document.getElementById("sync-form").addEventListener("submit", submitSync);
+    document.getElementById("sync-cancel").addEventListener("click", closeSyncModal);
+    document.getElementById("sync-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "sync-overlay") closeSyncModal();
+    });
     document.getElementById("confirm-cancel").addEventListener("click", () => {
       document.getElementById("confirm-overlay").classList.remove("open");
       state.pendingDeleteId = null;
@@ -1496,8 +1753,15 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeOverlays();
     });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && getSyncConfig().key) syncNow();
+    });
 
     render();
+    if (getSyncConfig().key) {
+      setSyncStatus("busy", "Синхронизация…");
+      syncNow();
+    }
   </script>
 </body>
 </html>
