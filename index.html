@@ -17,6 +17,8 @@
       --debit: #6ec8ff;
       --credit: #f0a070;
       --danger: #ff7b7b;
+      --saldo-plus: #5ee9a3;
+      --saldo-minus: #ff6b6b;
       --radius: 14px;
       --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
@@ -161,6 +163,9 @@
       color: var(--text-secondary);
     }
 
+    .saldo-positive { color: var(--saldo-plus); }
+    .saldo-negative { color: var(--saldo-minus); }
+
     .add-contractor {
       border: 1px dashed rgba(74, 158, 255, 0.45);
       color: var(--debit);
@@ -204,8 +209,16 @@
       color: var(--debit);
     }
 
+    .summary-card.saldo .value.positive {
+      color: var(--saldo-plus);
+    }
+
     .summary-card.saldo .value.negative {
-      color: var(--credit);
+      color: var(--saldo-minus);
+    }
+
+    .summary-card.saldo .value.zero {
+      color: var(--text);
     }
 
     .tabs, .subtabs {
@@ -818,6 +831,12 @@
       return { debit, credit, saldo: debit - credit };
     }
 
+    function saldoTone(amount) {
+      if (amount > 0) return "positive";
+      if (amount < 0) return "negative";
+      return "zero";
+    }
+
     function currentCategory() {
       if (state.tab === "dtf") return "Аренда ДТФ";
       if (state.tab === "invoices") return "Счета";
@@ -878,7 +897,7 @@
           <button class="contractor-card" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
-            <div class="meta">${meta} · сальдо ${formatMoney(t.saldo)}</div>
+            <div class="meta">${meta} · сальдо <span class="saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</span></div>
           </button>
         `;
       }).join("");
@@ -1018,7 +1037,7 @@
           </div>
           <div class="summary-card saldo">
             <div class="label">Сальдо</div>
-            <div class="value ${t.saldo < 0 ? "negative" : ""}">${formatMoney(t.saldo)}</div>
+            <div class="value ${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
           </div>
         </div>
         ${tabs}
