@@ -160,15 +160,26 @@
       line-height: 1.4;
     }
 
+    .home-totals {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 0 0 24px;
+    }
+
+    .home-totals .summary-card .value.profit {
+      color: var(--saldo-plus);
+    }
+
     .contractors {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 16px;
     }
 
     .contractor-card,
     .add-contractor {
-      min-height: 160px;
+      min-height: 180px;
       border-radius: 16px;
       background: var(--card);
       box-shadow: var(--shadow);
@@ -202,6 +213,64 @@
     .contractor-card .meta {
       font-size: 0.85rem;
       color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .card-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .card-stats .stat {
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+
+    .card-stats .stat-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .card-stats .stat-value {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    .card-stats .stat-value.profit {
+      color: var(--saldo-plus);
+    }
+
+    .contractor-card.overdue {
+      border-color: rgba(255, 107, 107, 0.55);
+      box-shadow: 0 8px 32px rgba(255, 80, 80, 0.2);
+      background: rgba(255, 107, 107, 0.08);
+    }
+
+    .contractor-card.overdue .name,
+    .profile-name.overdue,
+    .overdue-mark,
+    .cell-extra.overdue-mark {
+      color: var(--saldo-minus);
+    }
+
+    .contractor-card .overdue-mark {
+      font-size: 0.82rem;
+      font-weight: 650;
+    }
+
+    tr.overdue-row td {
+      background: rgba(255, 107, 107, 0.08);
+    }
+
+    .record-card.overdue-row {
+      border: 1px solid rgba(255, 107, 107, 0.35);
     }
 
     .saldo-positive { color: var(--saldo-plus); }
@@ -222,7 +291,7 @@
 
     .summary {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 14px;
       margin-bottom: 24px;
     }
@@ -245,9 +314,13 @@
     }
 
     .summary-card .value {
-      font-size: clamp(1.2rem, 2.6vw, 1.65rem);
+      font-size: clamp(1.05rem, 2.4vw, 1.65rem);
       font-weight: 700;
       color: var(--debit);
+    }
+
+    .summary-card .value.profit {
+      color: var(--saldo-plus);
     }
 
     .summary-card.saldo .value.positive {
@@ -665,9 +738,12 @@
       white-space: normal;
     }
 
+    @media (max-width: 900px) {
+      .summary { grid-template-columns: repeat(2, 1fr); }
+    }
+
     @media (max-width: 760px) {
       .app { padding: 18px 14px 36px; }
-      .summary { grid-template-columns: 1fr; }
       .desktop-table { display: none; }
       .mobile-list { display: flex; }
       .table-panel { overflow: visible; }
@@ -1068,7 +1144,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function todayIso() {
-      return new Date().toISOString().slice(0, 10);
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + day;
     }
 
     function contractorNames() {
@@ -1139,6 +1219,58 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return { debit, credit, saldo: debit - credit };
     }
 
+    function outstandingLoans(name) {
+      const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг");
+      let debit = 0;
+      let credit = 0;
+      records.forEach((r) => {
+        if (r.type === "Кредит") credit += Number(r.amount) || 0;
+        else debit += Number(r.amount) || 0;
+      });
+      return debit - credit;
+    }
+
+    function interestProfit(name) {
+      return (db.contractors[name]?.records || [])
+        .filter((r) => r.category === "Деньги в долг" && r.type !== "Кредит")
+        .reduce((sum, r) => sum + (Number(r.profit) || 0), 0);
+    }
+
+    function globalDebtAndProfit() {
+      let debt = 0;
+      let profit = 0;
+      contractorNames().forEach((name) => {
+        debt += outstandingLoans(name);
+        profit += interestProfit(name);
+      });
+      return { debt, profit };
+    }
+
+    function overdueLoanIds(name) {
+      const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг");
+      const loans = records
+        .filter((r) => r.type !== "Кредит")
+        .slice()
+        .sort((a, b) => (a.issueDate || a.date || "").localeCompare(b.issueDate || b.date || "") || (a.id || "").localeCompare(b.id || ""));
+      let creditLeft = records
+        .filter((r) => r.type === "Кредит")
+        .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+      const today = todayIso();
+      const overdue = new Set();
+      loans.forEach((loan) => {
+        const amount = Number(loan.amount) || 0;
+        const applied = Math.min(creditLeft, amount);
+        creditLeft -= applied;
+        const unpaid = amount - applied > 0.009;
+        if (unpaid && loan.returnDate && loan.returnDate < today) overdue.add(loan.id);
+      });
+      return overdue;
+    }
+
+    function hasOverdueDebt(name) {
+      return overdueLoanIds(name).size > 0;
+    }
+
     function saldoTone(amount) {
       if (amount > 0) return "positive";
       if (amount < 0) return "negative";
@@ -1198,15 +1330,29 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function renderHome() {
+      const totalsAll = globalDebtAndProfit();
       const cards = contractorNames().map((name) => {
         const cfg = contractorConfig(name);
         const t = totals(name);
+        const profit = interestProfit(name);
+        const overdue = hasOverdueDebt(name);
         const meta = cfg.hasRental ? "Аренда и займы" : "Только займы";
         return `
-          <button class="contractor-card" data-open="${escapeHtml(name)}">
+          <button class="contractor-card ${overdue ? "overdue" : ""}" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
-            <div class="meta">${meta} · сальдо <span class="saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</span></div>
+            <div class="meta">${meta}</div>
+            <div class="card-stats">
+              <div class="stat">
+                <div class="stat-label">Сальдо</div>
+                <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Прибыль</div>
+                <div class="stat-value profit">${formatMoney(profit)}</div>
+              </div>
+            </div>
+            ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
           </button>
         `;
       }).join("");
@@ -1219,6 +1365,16 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <span class="sync-status ${syncState.status}" id="sync-status">${escapeHtml(syncState.message)}</span>
             <button type="button" class="sync-btn" id="sync-now">↻ Синхронизировать</button>
             <button type="button" class="sync-btn" id="sync-settings">Настройки синхронизации</button>
+          </div>
+        </div>
+        <div class="home-totals">
+          <div class="summary-card saldo">
+            <div class="label">Сумма долгов</div>
+            <div class="value ${saldoTone(totalsAll.debt)}">${formatMoney(totalsAll.debt)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Прибыль по процентам</div>
+            <div class="value profit">${formatMoney(totalsAll.profit)}</div>
           </div>
         </div>
         <div class="contractors">
@@ -1235,6 +1391,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const name = state.contractor;
       const cfg = contractorConfig(name);
       const t = totals(name, true);
+      const allTimeProfit = interestProfit(name);
       const rows = visibleRecords();
 
       const tabItems = [];
@@ -1257,8 +1414,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </div>
       ` : "";
 
+      const overdueIds = overdueLoanIds(name);
       const tableRows = rows.map((r) => `
-        <tr>
+        <tr class="${overdueIds.has(r.id) ? "overdue-row" : ""}">
           <td>${formatDate(r.date)}</td>
           <td>${escapeHtml(r.category)}</td>
           <td>
@@ -1266,6 +1424,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${r.month ? `<span class="cell-extra">${escapeHtml(r.month)}</span>` : ""}
             ${r.invoiceNumber ? `<span class="cell-extra">№ ${escapeHtml(r.invoiceNumber)}</span>` : ""}
             ${r.issueDate ? `<span class="cell-extra">выдача ${formatDate(r.issueDate)}</span>` : ""}
+            ${r.returnDate ? `<span class="cell-extra ${overdueIds.has(r.id) ? "overdue-mark" : ""}">вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span>` : ""}
           </td>
           <td>${formatMoney(r.amount)}</td>
           <td class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</td>
@@ -1282,10 +1441,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       `).join("");
 
       const cards = rows.map((r) => `
-        <div class="record-card">
+        <div class="record-card ${overdueIds.has(r.id) ? "overdue-row" : ""}">
           <div class="row"><strong>${formatDate(r.date)}</strong><span class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
           <div class="row muted"><span>${escapeHtml(r.paymentMethod || "—")}</span><span>${r.category === "Деньги в долг" ? "Прибыль: " + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span></div>
+          ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : ""}
           ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
           <div class="row muted">
             <span></span>
@@ -1345,7 +1505,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <button class="back-btn" id="back-home">← Назад</button>
           <h1>Финансовый учёт</h1>
         </div>
-        <div class="profile-name">${escapeHtml(name)}</div>
+        <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
+        ${hasOverdueDebt(name) ? `<p class="overdue-mark" style="text-align:center;margin:-12px 0 18px;">Просрочен возврат долга</p>` : ""}
         <div class="analytics">
           <div class="analytics-head">
             <span class="title">Период</span>
@@ -1375,6 +1536,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <div class="summary-card saldo">
             <div class="label">Сальдо</div>
             <div class="value ${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Прибыль за всё время</div>
+            <div class="value profit">${formatMoney(allTimeProfit)}</div>
           </div>
         </div>
         ${tabs}
@@ -1472,19 +1637,22 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const isInvoice = category === "Счета";
       const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
 
+      const isDebtIssue = isDebt && state.recordType !== "Кредит";
+      const isDebtRepay = isDebt && state.recordType === "Кредит";
+
       document.getElementById("category-field").classList.add("hidden");
       document.getElementById("subcategory-field").classList.add("hidden");
-      document.getElementById("date-field").classList.toggle("hidden", isDebt);
-      document.getElementById("date-label").textContent = isInvoice ? "Дата счета" : "Дата";
+      document.getElementById("date-field").classList.toggle("hidden", isDebtIssue);
+      document.getElementById("date-label").textContent = isDebtRepay ? "Дата погашения" : (isInvoice ? "Дата счета" : "Дата");
       document.getElementById("month-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("year-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("invoice-field").classList.toggle("hidden", !isInvoice);
       document.getElementById("comment-field").classList.remove("hidden");
       document.getElementById("payment-field").classList.toggle("hidden", state.recordType !== "Кредит");
-      document.getElementById("issue-field").classList.toggle("hidden", !isDebt);
-      document.getElementById("return-field").classList.toggle("hidden", !isDebt);
-      document.getElementById("rate-field").classList.toggle("hidden", !isDebt);
-      document.getElementById("profit-preview").classList.toggle("hidden", !isDebt);
+      document.getElementById("issue-field").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("return-field").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("rate-field").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("profit-preview").classList.toggle("hidden", !isDebtIssue);
       updateProfitPreview();
     }
 
@@ -1571,19 +1739,30 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const isDebt = category === "Деньги в долг";
       const isInvoice = category === "Счета";
       const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
+      const isCredit = state.recordType === "Кредит";
       const issueDate = document.getElementById("field-issue").value || null;
-      const date = isDebt ? issueDate : document.getElementById("field-date").value;
+      const returnDate = document.getElementById("field-return").value || null;
+      const date = isDebt && !isCredit ? issueDate : document.getElementById("field-date").value;
       if (!document.getElementById("field-amount").value || Number.isNaN(amount) || amount <= 0) {
         error.textContent = "Укажите сумму";
         error.classList.add("show");
         return;
       }
       if (!date) {
-        error.textContent = isDebt ? "Укажите дату выдачи" : "Укажите дату";
+        error.textContent = isDebt && !isCredit ? "Укажите дату выдачи" : (isDebt ? "Укажите дату погашения" : "Укажите дату");
         error.classList.add("show");
         return;
       }
-      const isCredit = state.recordType === "Кредит";
+      if (isDebt && !isCredit && !returnDate) {
+        error.textContent = "Укажите срок возврата";
+        error.classList.add("show");
+        return;
+      }
+      if (isDebt && !isCredit && returnDate < date) {
+        error.textContent = "Срок возврата не может быть раньше даты выдачи";
+        error.classList.add("show");
+        return;
+      }
       const paymentMethod = isCredit ? document.getElementById("field-payment").value : null;
       if (isCredit && !paymentMethod) {
         error.textContent = "Укажите способ оплаты";
@@ -1594,7 +1773,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const subCategory = category === "Аренда помещения" ? document.getElementById("field-subcategory").value : null;
       const monthName = document.getElementById("field-month").value;
       const year = Number(document.getElementById("field-year").value);
-      const returnDate = document.getElementById("field-return").value || null;
       const interestRate = Number(document.getElementById("field-rate").value) || 0;
 
       const record = {
@@ -1609,10 +1787,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         invoiceNumber: isInvoice ? document.getElementById("field-invoice").value.trim() : null,
         paymentMethod,
         comment: document.getElementById("field-comment").value.trim(),
-        issueDate: isDebt ? issueDate : null,
-        returnDate: isDebt ? returnDate : null,
-        interestRate: isDebt ? interestRate : null,
-        profit: isDebt ? calcProfit(amount, interestRate, issueDate, returnDate) : 0
+        issueDate: isDebt && !isCredit ? issueDate : null,
+        returnDate: isDebt && !isCredit ? returnDate : null,
+        interestRate: isDebt && !isCredit ? interestRate : null,
+        profit: isDebt && !isCredit ? calcProfit(amount, interestRate, issueDate, returnDate) : 0
       };
 
       const list = db.contractors[state.contractor].records;
