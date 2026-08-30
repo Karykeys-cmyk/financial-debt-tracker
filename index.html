@@ -1219,17 +1219,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return { debit, credit, saldo: debit - credit };
     }
 
-    function outstandingLoans(name) {
-      const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг");
-      let debit = 0;
-      let credit = 0;
-      records.forEach((r) => {
-        if (r.type === "Кредит") credit += Number(r.amount) || 0;
-        else debit += Number(r.amount) || 0;
-      });
-      return debit - credit;
-    }
-
     function interestProfit(name) {
       return (db.contractors[name]?.records || [])
         .filter((r) => r.category === "Деньги в долг" && r.type !== "Кредит")
@@ -1240,7 +1229,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       let debt = 0;
       let profit = 0;
       contractorNames().forEach((name) => {
-        debt += outstandingLoans(name);
+        debt += totals(name).saldo;
         profit += interestProfit(name);
       });
       return { debt, profit };
