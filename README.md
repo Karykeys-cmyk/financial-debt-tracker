@@ -1,8 +1,14 @@
 # Финансовый учёт
 
-Одностраничное приложение для учёта дебиторской задолженности. Все данные хранятся в `localStorage` браузера. Интерфейс на русском языке. Node.js не нужен.
+Одностраничное приложение для учёта дебиторской задолженности. Данные хранятся в браузере. Интерфейс на русском языке.
 
-Откройте файл `index.html` в браузере (двойной щелчок или «Открыть с помощью»).
+## Открыть приложение
+
+[https://karykeys-cmyk.github.io/financial-debt-tracker/](https://karykeys-cmyk.github.io/financial-debt-tracker/)
+
+Один раз в репозитории на GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` → Folder: `/ (root)` → Save**. После этого ссылка выше открывает приложение.
+
+Репозиторий: [github.com/Karykeys-cmyk/financial-debt-tracker](https://github.com/Karykeys-cmyk/financial-debt-tracker)
 
 ## Контрагенты
 
@@ -18,6 +24,4 @@
 - Обязательный способ оплаты и необязательный комментарий
 - Фильтр таблицы по способу оплаты
 - Авторасчёт прибыли по займам
-- Автосохранение в `localStorage`
-
-Весь код — в одном файле `index.html` (HTML, CSS и JavaScript), без библиотек и без установки.
+- Автосохранение в браузере
