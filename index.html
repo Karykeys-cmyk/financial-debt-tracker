@@ -800,6 +800,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const DEFAULT_SYNC_URL = "https://sqsnhapkgtdjjkiexfrn.supabase.co";
+    const DEFAULT_SYNC_KEY = "sb_publishable_2wQo7nf5W4eBQmiPorV9Kg_u-gjFYb-";
     const SYNC_SQL = `create table if not exists public.finance_state (
   id text primary key,
   payload jsonb not null default '{}'::jsonb,
@@ -808,7 +809,8 @@
 alter table public.finance_state enable row level security;
 drop policy if exists finance_state_public on public.finance_state;
 create policy finance_state_public on public.finance_state
-  for all to anon, authenticated using (true) with check (true);`;
+  for all using (true) with check (true);
+grant all on table public.finance_state to anon, authenticated, public;`;
     const MONTHS = [
       "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
       "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
@@ -894,7 +896,7 @@ create policy finance_state_public on public.finance_state
     if (!Array.isArray(db.deletedRecordIds)) db.deletedRecordIds = [];
     saveData(db, { skipRemote: true });
 
-    const syncState = { status: "off", message: "Синхронизация не настроена" };
+    const syncState = { status: "busy", message: "Подключение к облаку…" };
 
     function getSyncConfig() {
       try {
@@ -902,10 +904,10 @@ create policy finance_state_public on public.finance_state
         const cfg = raw ? JSON.parse(raw) : {};
         return {
           url: (cfg.url || DEFAULT_SYNC_URL).replace(/\/$/, ""),
-          key: cfg.key || ""
+          key: cfg.key || DEFAULT_SYNC_KEY
         };
       } catch (err) {
-        return { url: DEFAULT_SYNC_URL, key: "" };
+        return { url: DEFAULT_SYNC_URL, key: DEFAULT_SYNC_KEY };
       }
     }
 
@@ -917,7 +919,7 @@ create policy finance_state_public on public.finance_state
       const text = await res.text();
       try {
         const json = JSON.parse(text);
-        if (/finance_state/i.test(text) && /does not exist|schema cache/i.test(text)) {
+        if (/finance_state/i.test(text) && /does not exist|schema cache|PGRST205/i.test(text)) {
           return "Таблица finance_state не найдена. Выполните SQL из настроек.";
         }
         return json.message || json.hint || text || "Ошибка облака";
@@ -928,12 +930,15 @@ create policy finance_state_public on public.finance_state
 
     function syncHeaders() {
       const { key } = getSyncConfig();
-      return {
+      const headers = {
         apikey: key,
-        Authorization: "Bearer " + key,
         "Content-Type": "application/json",
         Prefer: "return=representation,resolution=merge-duplicates"
       };
+      if (key && !key.startsWith("sb_")) {
+        headers.Authorization = "Bearer " + key;
+      }
+      return headers;
     }
 
     function setSyncStatus(status, message) {

@@ -30,10 +30,15 @@
 
 ## Синхронизация между устройствами
 
-Проект базы: [https://sqsnhapkgtdjjkiexfrn.supabase.co](https://sqsnhapkgtdjjkiexfrn.supabase.co)
+Проект: [https://sqsnhapkgtdjjkiexfrn.supabase.co](https://sqsnhapkgtdjjkiexfrn.supabase.co)
 
-1. В Supabase откройте **SQL Editor** и выполните SQL из окна «Настройки синхронизации» в приложении (таблица `finance_state`).
-2. Скопируйте ключ **anon public**: Project Settings → API.
-3. На каждом устройстве откройте приложение, нажмите «Настройки синхронизации», вставьте ключ и сохраните.
+Ключ уже вшит в приложение. Один раз создайте таблицу — в SQL Editor вставьте скрипт из «Настройки синхронизации» или выполните:
 
-После этого записи с телефона и компьютера объединяются в одном облаке. Без ключа приложение по-прежнему работает только на этом устройстве.
+```bash
+supabase login
+supabase init
+supabase link --project-ref sqsnhapkgtdjjkiexfrn
+supabase db push
+```
+
+После этого записи с телефона и компьютера сохраняются в облаке и подтягиваются на других устройствах.
