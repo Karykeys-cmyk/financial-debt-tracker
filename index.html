@@ -187,9 +187,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 10px;
-      padding: 24px 16px;
+      padding: 22px 16px 18px;
       transition: transform 0.3s, background 0.3s, border-color 0.3s;
       border: 1px solid rgba(255, 255, 255, 0.06);
     }
@@ -243,8 +243,72 @@
       margin-top: 3px;
     }
 
-    .card-stats .stat-value.profit {
-      color: var(--saldo-plus);
+    .card-split {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 100%;
+      margin-top: 2px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      text-align: left;
+    }
+
+    .card-split .split-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .card-split .split-head strong {
+      color: var(--debit);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .card-split .split-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .card-split .split-row b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .debit-breakdown {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: -10px 0 24px;
+    }
+
+    .debit-breakdown .item {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .debit-breakdown .item .label {
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .debit-breakdown .item .value {
+      font-size: 1rem;
+      font-weight: 650;
+      color: var(--debit);
     }
 
     .contractor-card.overdue {
@@ -279,6 +343,7 @@
     .add-contractor {
       border: 1px dashed rgba(74, 158, 255, 0.45);
       color: var(--debit);
+      justify-content: center;
     }
 
     .profile-name {
@@ -740,6 +805,7 @@
 
     @media (max-width: 900px) {
       .summary { grid-template-columns: repeat(2, 1fr); }
+      .debit-breakdown { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 760px) {
@@ -1219,6 +1285,30 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return { debit, credit, saldo: debit - credit };
     }
 
+    function debitBreakdown(name, usePeriod) {
+      let records = db.contractors[name]?.records || [];
+      if (usePeriod) records = records.filter(inSelectedPeriod);
+      const add = (pred) => records.reduce((sum, r) => {
+        if (r.type === "Кредит") return sum;
+        return pred(r) ? sum + (Number(r.amount) || 0) : sum;
+      }, 0);
+      return {
+        rent: add((r) => (r.category === "Аренда помещения" && r.subCategory === "Аренда") || r.category === "Аренда ДТФ"),
+        utilities: add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка"),
+        cash: add((r) => r.category === "Деньги в долг"),
+        invoices: add((r) => r.category === "Счета")
+      };
+    }
+
+    function debitBreakdownRows(split) {
+      return [
+        ["Всего за аренду", split.rent],
+        ["Коммуналка", split.utilities],
+        ["Всего по наличным", split.cash],
+        ["По счетам", split.invoices]
+      ];
+    }
+
     function interestProfit(name) {
       return (db.contractors[name]?.records || [])
         .filter((r) => r.category === "Деньги в долг" && r.type !== "Кредит")
@@ -1326,6 +1416,15 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const profit = interestProfit(name);
         const overdue = hasOverdueDebt(name);
         const meta = cfg.hasRental ? "Аренда и займы" : "Только займы";
+        const split = cfg.hasRental ? debitBreakdown(name) : null;
+        const splitHtml = split ? `
+            <div class="card-split">
+              <div class="split-head"><span>Дебет</span><strong>${formatMoney(t.debit)}</strong></div>
+              ${debitBreakdownRows(split).map(([label, amount]) => (
+                `<div class="split-row"><span>${label}</span><b>${formatMoney(amount)}</b></div>`
+              )).join("")}
+            </div>
+        ` : "";
         return `
           <button class="contractor-card ${overdue ? "overdue" : ""}" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
@@ -1341,6 +1440,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 <div class="stat-value profit">${formatMoney(profit)}</div>
               </div>
             </div>
+            ${splitHtml}
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
           </button>
         `;
@@ -1381,6 +1481,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const cfg = contractorConfig(name);
       const t = totals(name, true);
       const allTimeProfit = interestProfit(name);
+      const split = cfg.hasRental ? debitBreakdown(name, true) : null;
       const rows = visibleRecords();
 
       const tabItems = [];
@@ -1531,6 +1632,16 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="value profit">${formatMoney(allTimeProfit)}</div>
           </div>
         </div>
+        ${split ? `
+        <div class="debit-breakdown">
+          ${debitBreakdownRows(split).map(([label, amount]) => `
+            <div class="item">
+              <div class="label">${label}</div>
+              <div class="value">${formatMoney(amount)}</div>
+            </div>
+          `).join("")}
+        </div>
+        ` : ""}
         ${tabs}
         ${subtabs}
         ${paymentFilter}
