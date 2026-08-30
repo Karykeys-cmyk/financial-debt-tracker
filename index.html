@@ -17,6 +17,8 @@
       --debit: #6ec8ff;
       --credit: #f0a070;
       --danger: #ff7b7b;
+      --saldo-plus: #5ee9a3;
+      --saldo-minus: #ff6b6b;
       --radius: 14px;
       --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
@@ -161,6 +163,9 @@
       color: var(--text-secondary);
     }
 
+    .saldo-positive { color: var(--saldo-plus); }
+    .saldo-negative { color: var(--saldo-minus); }
+
     .add-contractor {
       border: 1px dashed rgba(74, 158, 255, 0.45);
       color: var(--debit);
@@ -204,8 +209,16 @@
       color: var(--debit);
     }
 
+    .summary-card.saldo .value.positive {
+      color: var(--saldo-plus);
+    }
+
     .summary-card.saldo .value.negative {
-      color: var(--credit);
+      color: var(--saldo-minus);
+    }
+
+    .summary-card.saldo .value.zero {
+      color: var(--text);
     }
 
     .tabs, .subtabs {
@@ -252,7 +265,89 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 720px;
+      min-width: 980px;
+    }
+
+    td.wrap {
+      white-space: normal;
+      max-width: 200px;
+    }
+
+    .analytics {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+
+    .analytics-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+    }
+
+    .analytics-head .title {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-right: 4px;
+    }
+
+    .analytics-head select {
+      min-width: 160px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      outline: none;
+    }
+
+    .analytics-head select option {
+      background: #121f3a;
+      color: #fff;
+    }
+
+    .analytics-caption {
+      margin-top: 10px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .table-toolbar label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .table-toolbar select {
+      min-width: 220px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--card);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      outline: none;
+    }
+
+    .table-toolbar select option {
+      background: #121f3a;
+      color: #fff;
     }
 
     th, td {
@@ -542,7 +637,7 @@
   <div class="app" id="app"></div>
 
   <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
-    <form class="modal" id="record-form">
+    <form class="modal" id="record-form" novalidate>
       <h2 id="record-title">Добавить запись</h2>
       <div class="field hidden" id="category-field">
         <label for="field-category">Категория</label>
@@ -579,10 +674,6 @@
         <label for="field-invoice">Номер счета</label>
         <input id="field-invoice" type="text" placeholder="Например, СЧ-104" />
       </div>
-      <div class="field hidden" id="comment-field">
-        <label for="field-comment">Комментарий</label>
-        <textarea id="field-comment" placeholder="Комментарий к счёту"></textarea>
-      </div>
       <div class="field hidden" id="issue-field">
         <label for="field-issue">Дата выдачи</label>
         <input id="field-issue" type="date" />
@@ -594,6 +685,14 @@
       <div class="field hidden" id="rate-field">
         <label for="field-rate">Проценты (% годовых)</label>
         <input id="field-rate" type="number" min="0" step="0.01" placeholder="0" />
+      </div>
+      <div class="field" id="payment-field">
+        <label for="field-payment">Способ оплаты</label>
+        <select id="field-payment"></select>
+      </div>
+      <div class="field" id="comment-field">
+        <label for="field-comment">Комментарий</label>
+        <textarea id="field-comment" placeholder="Необязательно"></textarea>
       </div>
       <div class="profit-preview hidden" id="profit-preview">Прибыль: 0 ₽</div>
       <div class="error" id="record-error"></div>
@@ -643,12 +742,24 @@
       "Максюшка": { hasRental: true, hasDtf: false, hasInvoices: true }
     };
     const RENTAL_SUBS = ["Коммуналка", "Аренда"];
+    const PAYMENT_METHODS = [
+      "Наличные",
+      "Безналичный расчёт",
+      "Услугами",
+      "Товарами",
+      "Взаимозачёт",
+      "Другое"
+    ];
 
     const state = {
       view: "home",
       contractor: null,
       tab: "rental",
       subTab: "Коммуналка",
+      paymentFilter: "Все",
+      periodMode: "all",
+      periodYear: String(new Date().getFullYear()),
+      periodMonth: String(new Date().getMonth() + 1),
       editingId: null,
       recordType: "Дебет",
       pendingDeleteId: null
@@ -758,8 +869,54 @@
       return db.contractors[state.contractor]?.records || [];
     }
 
-    function totals(name) {
-      const records = db.contractors[name]?.records || [];
+    function recordYearMonth(record) {
+      if (record.year) {
+        const monthName = String(record.month || "").split(" ")[0];
+        const monthIndex = MONTHS.indexOf(monthName);
+        if (monthIndex >= 0) return { year: Number(record.year), month: monthIndex + 1 };
+      }
+      const iso = record.date || record.issueDate;
+      if (!iso || !/^\d{4}-\d{2}/.test(iso)) return null;
+      return { year: Number(iso.slice(0, 4)), month: Number(iso.slice(5, 7)) };
+    }
+
+    function inSelectedPeriod(record) {
+      if (state.periodMode === "all") return true;
+      const ym = recordYearMonth(record);
+      if (!ym) return false;
+      if (Number(ym.year) !== Number(state.periodYear)) return false;
+      if (state.periodMode === "month" && Number(ym.month) !== Number(state.periodMonth)) return false;
+      return true;
+    }
+
+    function periodYears() {
+      const years = new Set();
+      const now = new Date().getFullYear();
+      for (let y = 2020; y <= Math.max(now, 2030); y++) years.add(y);
+      currentRecords().forEach((r) => {
+        const ym = recordYearMonth(r);
+        if (ym && ym.year) years.add(ym.year);
+      });
+      return [...years].sort((a, b) => b - a);
+    }
+
+    function periodRangeLabel() {
+      if (state.periodMode === "year") return String(state.periodYear);
+      if (state.periodMode === "month") {
+        const monthName = MONTHS[Number(state.periodMonth) - 1] || "";
+        return `${monthName} ${state.periodYear}`;
+      }
+      const dates = currentRecords()
+        .map((r) => r.date || r.issueDate)
+        .filter((d) => d && /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .sort();
+      if (!dates.length) return "с начала задолженностей по текущую дату";
+      return `с ${formatDate(dates[0])} по ${formatDate(todayIso())}`;
+    }
+
+    function totals(name, usePeriod) {
+      let records = db.contractors[name]?.records || [];
+      if (usePeriod) records = records.filter(inSelectedPeriod);
       let debit = 0;
       let credit = 0;
       records.forEach((r) => {
@@ -767,6 +924,12 @@
         else debit += Number(r.amount) || 0;
       });
       return { debit, credit, saldo: debit - credit };
+    }
+
+    function saldoTone(amount) {
+      if (amount > 0) return "positive";
+      if (amount < 0) return "negative";
+      return "zero";
     }
 
     function currentCategory() {
@@ -790,9 +953,15 @@
       return currentRecords()
         .filter((r) => {
           if (state.tab === "rental") {
-            return r.category === "Аренда помещения" && r.subCategory === state.subTab;
+            if (!(r.category === "Аренда помещения" && r.subCategory === state.subTab)) return false;
+          } else if (r.category !== currentCategory()) {
+            return false;
           }
-          return r.category === currentCategory();
+          if (state.paymentFilter !== "Все" && (r.paymentMethod || "") !== state.paymentFilter) {
+            return false;
+          }
+          if (!inSelectedPeriod(r)) return false;
+          return true;
         })
         .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.id || "").localeCompare(a.id || ""));
     }
@@ -824,7 +993,7 @@
           <button class="contractor-card" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
-            <div class="meta">${meta} · сальдо ${formatMoney(t.saldo)}</div>
+            <div class="meta">${meta} · сальдо <span class="saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</span></div>
           </button>
         `;
       }).join("");
@@ -847,7 +1016,7 @@
     function renderProfile() {
       const name = state.contractor;
       const cfg = contractorConfig(name);
-      const t = totals(name);
+      const t = totals(name, true);
       const rows = visibleRecords();
 
       const tabItems = [];
@@ -883,6 +1052,8 @@
           <td>${formatMoney(r.amount)}</td>
           <td class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</td>
           <td class="muted">${r.category === "Деньги в долг" ? formatMoney(r.profit) : "—"}</td>
+          <td>${escapeHtml(r.paymentMethod || "—")}</td>
+          <td class="wrap muted">${escapeHtml(r.comment || "—")}</td>
           <td>
             <div class="actions">
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Редактировать" aria-label="Редактировать">✏️</button>
@@ -896,8 +1067,10 @@
         <div class="record-card">
           <div class="row"><strong>${formatDate(r.date)}</strong><span class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
+          <div class="row muted"><span>${escapeHtml(r.paymentMethod || "—")}</span><span>${r.category === "Деньги в долг" ? "Прибыль: " + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span></div>
+          ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
           <div class="row muted">
-            <span>${r.category === "Деньги в долг" ? "Прибыль: " + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span>
+            <span></span>
             <span class="actions">
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Редактировать">✏️</button>
               <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>
@@ -905,6 +1078,17 @@
           </div>
         </div>
       `).join("");
+
+      const tabRecords = currentRecords().filter((r) => {
+        if (state.tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
+        return r.category === currentCategory();
+      });
+      let emptyText = "Записей пока нет";
+      if (tabRecords.length && !rows.length) {
+        emptyText = state.paymentFilter !== "Все"
+          ? "Нет записей с таким способом оплаты"
+          : "Нет записей за выбранный период";
+      }
 
       const body = rows.length ? `
         <div class="table-scroll desktop-table">
@@ -917,6 +1101,8 @@
                 <th>Сумма</th>
                 <th>Тип</th>
                 <th>Прибыль</th>
+                <th>Способ оплаты</th>
+                <th>Комментарий</th>
                 <th>Действия</th>
               </tr>
             </thead>
@@ -924,7 +1110,17 @@
           </table>
         </div>
         <div class="mobile-list">${cards}</div>
-      ` : `<div class="empty">Записей пока нет</div>`;
+      ` : `<div class="empty">${emptyText}</div>`;
+
+      const paymentFilter = `
+        <div class="table-toolbar">
+          <label for="filter-payment">Способ оплаты</label>
+          <select id="filter-payment">
+            <option value="Все" ${state.paymentFilter === "Все" ? "selected" : ""}>Все</option>
+            ${PAYMENT_METHODS.map((m) => `<option value="${escapeHtml(m)}" ${state.paymentFilter === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}
+          </select>
+        </div>
+      `;
 
       return `
         <div class="topbar">
@@ -932,6 +1128,23 @@
           <h1>Финансовый учёт</h1>
         </div>
         <div class="profile-name">${escapeHtml(name)}</div>
+        <div class="analytics">
+          <div class="analytics-head">
+            <span class="title">Период</span>
+            <select id="filter-period-mode">
+              <option value="all" ${state.periodMode === "all" ? "selected" : ""}>Весь период</option>
+              <option value="year" ${state.periodMode === "year" ? "selected" : ""}>Год</option>
+              <option value="month" ${state.periodMode === "month" ? "selected" : ""}>Месяц</option>
+            </select>
+            <select id="filter-period-year" class="${state.periodMode === "all" ? "hidden" : ""}">
+              ${periodYears().map((y) => `<option value="${y}" ${String(y) === String(state.periodYear) ? "selected" : ""}>${y}</option>`).join("")}
+            </select>
+            <select id="filter-period-month" class="${state.periodMode === "month" ? "" : "hidden"}">
+              ${MONTHS.map((label, i) => `<option value="${i + 1}" ${String(i + 1) === String(state.periodMonth) ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
+          </div>
+          <div class="analytics-caption">${escapeHtml(periodRangeLabel())}</div>
+        </div>
         <div class="summary">
           <div class="summary-card">
             <div class="label">Дебет</div>
@@ -943,11 +1156,12 @@
           </div>
           <div class="summary-card saldo">
             <div class="label">Сальдо</div>
-            <div class="value ${t.saldo < 0 ? "negative" : ""}">${formatMoney(t.saldo)}</div>
+            <div class="value ${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
           </div>
         </div>
         ${tabs}
         ${subtabs}
+        ${paymentFilter}
         <div class="table-panel">${body}</div>
         <button class="add-record" id="add-record">➕ Добавить запись</button>
       `;
@@ -961,6 +1175,22 @@
         render();
       });
       document.getElementById("add-record")?.addEventListener("click", () => openRecordModal());
+      document.getElementById("filter-payment")?.addEventListener("change", (e) => {
+        state.paymentFilter = e.target.value;
+        render();
+      });
+      document.getElementById("filter-period-mode")?.addEventListener("change", (e) => {
+        state.periodMode = e.target.value;
+        render();
+      });
+      document.getElementById("filter-period-year")?.addEventListener("change", (e) => {
+        state.periodYear = e.target.value;
+        render();
+      });
+      document.getElementById("filter-period-month")?.addEventListener("change", (e) => {
+        state.periodMonth = e.target.value;
+        render();
+      });
 
       document.querySelectorAll("[data-open]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -1001,6 +1231,10 @@
       state.contractor = name;
       state.tab = cfg.hasRental ? "rental" : "debt";
       state.subTab = "Коммуналка";
+      state.paymentFilter = "Все";
+      state.periodMode = "all";
+      state.periodYear = String(new Date().getFullYear());
+      state.periodMonth = String(new Date().getMonth() + 1);
       render();
     }
 
@@ -1025,7 +1259,8 @@
       document.getElementById("month-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("year-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("invoice-field").classList.toggle("hidden", !isInvoice);
-      document.getElementById("comment-field").classList.toggle("hidden", !isInvoice);
+      document.getElementById("comment-field").classList.remove("hidden");
+      document.getElementById("payment-field").classList.toggle("hidden", state.recordType !== "Кредит");
       document.getElementById("issue-field").classList.toggle("hidden", !isDebt);
       document.getElementById("return-field").classList.toggle("hidden", !isDebt);
       document.getElementById("rate-field").classList.toggle("hidden", !isDebt);
@@ -1046,6 +1281,7 @@
       state.recordType = type;
       document.getElementById("type-debit").classList.toggle("active", type === "Дебет");
       document.getElementById("type-credit").classList.toggle("active", type === "Кредит");
+      syncRecordFields();
     }
 
     function openRecordModal(id) {
@@ -1061,6 +1297,10 @@
       const years = [];
       for (let y = 2020; y <= 2030; y++) years.push(String(y));
       fillSelect(document.getElementById("field-year"), years, String(new Date().getFullYear()));
+      fillSelect(document.getElementById("field-payment"), [
+        { value: "", label: "Выберите способ оплаты" },
+        ...PAYMENT_METHODS
+      ], "");
 
       document.getElementById("field-date").value = todayIso();
       document.getElementById("field-issue").value = todayIso();
@@ -1086,6 +1326,7 @@
           }
           document.getElementById("field-invoice").value = rec.invoiceNumber || "";
           document.getElementById("field-comment").value = rec.comment || "";
+          if (rec.paymentMethod) document.getElementById("field-payment").value = rec.paymentMethod;
           document.getElementById("field-issue").value = rec.issueDate || rec.date || "";
           document.getElementById("field-return").value = rec.returnDate || "";
           document.getElementById("field-rate").value = rec.interestRate ?? 0;
@@ -1122,6 +1363,13 @@
         error.classList.add("show");
         return;
       }
+      const isCredit = state.recordType === "Кредит";
+      const paymentMethod = isCredit ? document.getElementById("field-payment").value : null;
+      if (isCredit && !paymentMethod) {
+        error.textContent = "Укажите способ оплаты";
+        error.classList.add("show");
+        return;
+      }
 
       const subCategory = category === "Аренда помещения" ? document.getElementById("field-subcategory").value : null;
       const monthName = document.getElementById("field-month").value;
@@ -1139,7 +1387,8 @@
         month: isPeriod ? `${monthName} ${year}` : null,
         year: isPeriod ? year : null,
         invoiceNumber: isInvoice ? document.getElementById("field-invoice").value.trim() : null,
-        comment: isInvoice ? document.getElementById("field-comment").value.trim() : "",
+        paymentMethod,
+        comment: document.getElementById("field-comment").value.trim(),
         issueDate: isDebt ? issueDate : null,
         returnDate: isDebt ? returnDate : null,
         interestRate: isDebt ? interestRate : null,
