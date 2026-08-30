@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Финансовый учёт</title>
+  <style>
+    :root {
+      --bg-start: #0a1628;
+      --bg-end: #121f3a;
+      --card: rgba(255, 255, 255, 0.05);
+      --card-hover: rgba(255, 255, 255, 0.09);
+      --text: #ffffff;
+      --text-secondary: #b0c4de;
+      --accent: #4a9eff;
+      --accent-soft: rgba(74, 158, 255, 0.18);
+      --debit: #6ec8ff;
+      --credit: #f0a070;
+      --danger: #ff7b7b;
+      --radius: 14px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      min-height: 100%;
+    }
+
+    body {
+      font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(900px 500px at 12% -10%, rgba(74, 158, 255, 0.16), transparent 55%),
+        radial-gradient(700px 420px at 100% 0%, rgba(110, 200, 255, 0.08), transparent 50%);
+      z-index: 0;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: inherit;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .topbar h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      color: var(--text-secondary);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      transition: background 0.3s, color 0.3s, transform 0.3s;
+    }
+
+    .back-btn:hover {
+      background: var(--card-hover);
+      color: var(--text);
+      transform: translateX(-2px);
+    }
+
+    .hero {
+      text-align: center;
+      margin: 24px 0 32px;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.4rem);
+      font-weight: 750;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin-top: 8px;
+      color: var(--text-secondary);
+    }
+
+    .contractors {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .contractor-card,
+    .add-contractor {
+      min-height: 160px;
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 24px 16px;
+      transition: transform 0.3s, background 0.3s, border-color 0.3s;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .contractor-card:hover,
+    .add-contractor:hover {
+      transform: translateY(-3px);
+      background: var(--card-hover);
+    }
+
+    .contractor-card .icon,
+    .add-contractor .icon {
+      font-size: 2.2rem;
+    }
+
+    .contractor-card .name {
+      font-size: 1.25rem;
+      font-weight: 650;
+    }
+
+    .contractor-card .meta {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .add-contractor {
+      border: 1px dashed rgba(74, 158, 255, 0.45);
+      color: var(--debit);
+    }
+
+    .profile-name {
+      text-align: center;
+      font-size: clamp(1.8rem, 4vw, 2.3rem);
+      font-weight: 750;
+      margin: 8px 0 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .summary-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 18px 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .summary-card .label {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .summary-card .value {
+      font-size: clamp(1.2rem, 2.6vw, 1.65rem);
+      font-weight: 700;
+      color: var(--debit);
+    }
+
+    .summary-card.saldo .value.negative {
+      color: var(--credit);
+    }
+
+    .tabs, .subtabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tab, .subtab {
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--text-secondary);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: background 0.3s, color 0.3s, border-color 0.3s, transform 0.3s;
+    }
+
+    .tab.active, .subtab.active {
+      background: var(--accent-soft);
+      color: var(--text);
+      border-color: rgba(74, 158, 255, 0.45);
+    }
+
+    .tab:hover, .subtab:hover {
+      transform: translateY(-1px);
+      color: var(--text);
+    }
+
+    .table-panel {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      white-space: nowrap;
+    }
+
+    th {
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    td.muted {
+      color: var(--text-secondary);
+    }
+
+    .type-debit { color: var(--debit); font-weight: 600; }
+    .type-credit { color: var(--credit); font-weight: 600; }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      transition: background 0.3s, transform 0.3s;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .icon-btn.danger:hover {
+      background: rgba(255, 123, 123, 0.18);
+    }
+
+    .empty {
+      padding: 36px 20px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+
+    .add-record {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 650;
+      box-shadow: var(--shadow);
+      transition: transform 0.3s, filter 0.3s;
+    }
+
+    .add-record:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    .mobile-list {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .record-card {
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .record-card .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .record-card .row:last-child {
+      margin-bottom: 0;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 10, 22, 0.72);
+      backdrop-filter: blur(6px);
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(520px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      background: linear-gradient(180deg, rgba(18, 31, 58, 0.96), rgba(10, 22, 40, 0.96));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .modal h2 {
+      font-size: 1.25rem;
+      margin-bottom: 18px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    .field textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+      background: rgba(74, 158, 255, 0.08);
+    }
+
+    .field select option {
+      background: #121f3a;
+      color: #fff;
+    }
+
+    .type-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .type-toggle button {
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-secondary);
+      transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+
+    .type-toggle button.active.debit {
+      background: rgba(110, 200, 255, 0.16);
+      color: var(--debit);
+      border-color: rgba(110, 200, 255, 0.4);
+    }
+
+    .type-toggle button.active.credit {
+      background: rgba(240, 160, 112, 0.16);
+      color: var(--credit);
+      border-color: rgba(240, 160, 112, 0.4);
+    }
+
+    .profit-preview {
+      margin: 4px 0 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      color: var(--debit);
+      font-weight: 650;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .btn-primary, .btn-secondary {
+      flex: 1;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 650;
+      transition: transform 0.3s, filter 0.3s, background 0.3s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+    }
+
+    .btn-primary:hover, .btn-secondary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .error {
+      color: var(--danger);
+      font-size: 0.85rem;
+      margin: -6px 0 12px;
+      display: none;
+    }
+
+    .error.show { display: block; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(18, 31, 58, 0.95);
+      border: 1px solid rgba(74, 158, 255, 0.35);
+      color: var(--text);
+      padding: 12px 18px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 40;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .confirm-text {
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+    }
+
+    .hidden { display: none !important; }
+
+    .cell-extra {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 3px;
+      white-space: normal;
+    }
+
+    @media (max-width: 760px) {
+      .app { padding: 18px 14px 36px; }
+      .summary { grid-template-columns: 1fr; }
+      .desktop-table { display: none; }
+      .mobile-list { display: flex; }
+      .table-panel { overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app"></div>
+
+  <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
+    <form class="modal" id="record-form">
+      <h2 id="record-title">Добавить запись</h2>
+      <div class="field hidden" id="category-field">
+        <label for="field-category">Категория</label>
+        <select id="field-category"></select>
+      </div>
+      <div class="field hidden" id="subcategory-field">
+        <label for="field-subcategory">Подкатегория</label>
+        <select id="field-subcategory"></select>
+      </div>
+      <div class="field">
+        <label for="field-amount">Сумма</label>
+        <input id="field-amount" type="number" min="0.01" step="0.01" placeholder="0" required />
+      </div>
+      <div class="field" id="date-field">
+        <label for="field-date" id="date-label">Дата</label>
+        <input id="field-date" type="date" />
+      </div>
+      <div class="field">
+        <label>Тип</label>
+        <div class="type-toggle">
+          <button type="button" class="active debit" data-type="Дебет" id="type-debit">Дебет</button>
+          <button type="button" class="credit" data-type="Кредит" id="type-credit">Кредит</button>
+        </div>
+      </div>
+      <div class="field hidden" id="month-field">
+        <label for="field-month">Месяц</label>
+        <select id="field-month"></select>
+      </div>
+      <div class="field hidden" id="year-field">
+        <label for="field-year">Год</label>
+        <select id="field-year"></select>
+      </div>
+      <div class="field hidden" id="invoice-field">
+        <label for="field-invoice">Номер счета</label>
+        <input id="field-invoice" type="text" placeholder="Например, СЧ-104" />
+      </div>
+      <div class="field hidden" id="comment-field">
+        <label for="field-comment">Комментарий</label>
+        <textarea id="field-comment" placeholder="Комментарий к счёту"></textarea>
+      </div>
+      <div class="field hidden" id="issue-field">
+        <label for="field-issue">Дата выдачи</label>
+        <input id="field-issue" type="date" />
+      </div>
+      <div class="field hidden" id="return-field">
+        <label for="field-return">Срок возврата</label>
+        <input id="field-return" type="date" />
+      </div>
+      <div class="field hidden" id="rate-field">
+        <label for="field-rate">Проценты (% годовых)</label>
+        <input id="field-rate" type="number" min="0" step="0.01" placeholder="0" />
+      </div>
+      <div class="profit-preview hidden" id="profit-preview">Прибыль: 0 ₽</div>
+      <div class="error" id="record-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="record-cancel">Отмена</button>
+        <button type="submit" class="btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="overlay" id="contractor-overlay" role="dialog" aria-modal="true">
+    <form class="modal" id="contractor-form">
+      <h2>Добавить контрагента</h2>
+      <div class="field">
+        <label for="field-contractor-name">Имя контрагента</label>
+        <input id="field-contractor-name" type="text" placeholder="Введите имя на русском" maxlength="60" />
+      </div>
+      <div class="error" id="contractor-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="contractor-cancel">Отмена</button>
+        <button type="submit" class="btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="overlay" id="confirm-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h2>Удалить запись?</h2>
+      <p class="confirm-text">Это действие нельзя отменить.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="confirm-cancel">Отмена</button>
+        <button type="button" class="btn-primary" id="confirm-ok">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "finansovyy-uchet-data";
+    const MONTHS = [
+      "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+      "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ];
+    const SPECIAL = {
+      "Даня": { hasRental: true, hasDtf: true, hasInvoices: true },
+      "Максюшка": { hasRental: true, hasDtf: false, hasInvoices: true }
+    };
+    const RENTAL_SUBS = ["Коммуналка", "Аренда"];
+
+    const state = {
+      view: "home",
+      contractor: null,
+      tab: "rental",
+      subTab: "Коммуналка",
+      editingId: null,
+      recordType: "Дебет",
+      pendingDeleteId: null
+    };
+
+    function contractorConfig(name) {
+      return SPECIAL[name] || { hasRental: false, hasDtf: false, hasInvoices: false };
+    }
+
+    function migrateRecord(record) {
+      const r = { ...record };
+      if (r.category === "Аренда помещения" && r.subCategory === "Аренда ДТФ") {
+        r.category = "Аренда ДТФ";
+        r.subCategory = null;
+      } else if (r.category === "Аренда помещения" && r.subCategory === "Счета") {
+        r.category = "Счета";
+        r.subCategory = null;
+      }
+      return r;
+    }
+
+    function defaultData() {
+      return {
+        contractors: {
+          "Даня": { records: [] },
+          "Максюшка": { records: [] }
+        }
+      };
+    }
+
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const data = raw ? JSON.parse(raw) : defaultData();
+        if (!data.contractors) data.contractors = {};
+        if (!data.contractors["Даня"]) data.contractors["Даня"] = { records: [] };
+        if (!data.contractors["Максюшка"]) data.contractors["Максюшка"] = { records: [] };
+        Object.keys(data.contractors).forEach((name) => {
+          const list = data.contractors[name].records || [];
+          data.contractors[name].records = list.map(migrateRecord);
+        });
+        return data;
+      } catch (err) {
+        return defaultData();
+      }
+    }
+
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    let db = loadData();
+    saveData(db);
+
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatMoney(amount) {
+      const n = Number(amount) || 0;
+      return n.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " ₽";
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "—";
+      const [y, m, d] = iso.split("-");
+      if (!y || !m || !d) return iso;
+      return d + "." + m + "." + y;
+    }
+
+    function daysBetween(from, to) {
+      const a = new Date(from + "T00:00:00");
+      const b = new Date(to + "T00:00:00");
+      if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0;
+      return Math.round((b - a) / 86400000);
+    }
+
+    function calcProfit(amount, rate, issueDate, returnDate) {
+      const sum = Number(amount) || 0;
+      const interest = Number(rate) || 0;
+      if (!interest || !issueDate || !returnDate) return 0;
+      const days = daysBetween(issueDate, returnDate);
+      if (days <= 0) return 0;
+      return (sum * interest / 100) * (days / 365);
+    }
+
+    function todayIso() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function contractorNames() {
+      const extras = Object.keys(db.contractors)
+        .filter((name) => name !== "Даня" && name !== "Максюшка")
+        .sort((a, b) => a.localeCompare(b, "ru"));
+      return ["Даня", "Максюшка", ...extras];
+    }
+
+    function currentRecords() {
+      return db.contractors[state.contractor]?.records || [];
+    }
+
+    function totals(name) {
+      const records = db.contractors[name]?.records || [];
+      let debit = 0;
+      let credit = 0;
+      records.forEach((r) => {
+        if (r.type === "Кредит") credit += Number(r.amount) || 0;
+        else debit += Number(r.amount) || 0;
+      });
+      return { debit, credit, saldo: debit - credit };
+    }
+
+    function currentCategory() {
+      if (state.tab === "dtf") return "Аренда ДТФ";
+      if (state.tab === "invoices") return "Счета";
+      if (state.tab === "debt") return "Деньги в долг";
+      return "Аренда помещения";
+    }
+
+    function availableCategories(name) {
+      const cfg = contractorConfig(name);
+      const cats = [];
+      if (cfg.hasRental) cats.push("Аренда помещения");
+      if (cfg.hasDtf) cats.push("Аренда ДТФ");
+      if (cfg.hasInvoices) cats.push("Счета");
+      cats.push("Деньги в долг");
+      return cats;
+    }
+
+    function visibleRecords() {
+      return currentRecords()
+        .filter((r) => {
+          if (state.tab === "rental") {
+            return r.category === "Аренда помещения" && r.subCategory === state.subTab;
+          }
+          return r.category === currentCategory();
+        })
+        .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.id || "").localeCompare(a.id || ""));
+    }
+
+    function showToast(text) {
+      const el = document.getElementById("toast");
+      el.textContent = text;
+      el.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => el.classList.remove("show"), 2200);
+    }
+
+    function render() {
+      const root = document.getElementById("app");
+      if (state.view === "home") {
+        root.innerHTML = renderHome();
+      } else {
+        root.innerHTML = renderProfile();
+      }
+      bindView();
+    }
+
+    function renderHome() {
+      const cards = contractorNames().map((name) => {
+        const cfg = contractorConfig(name);
+        const t = totals(name);
+        const meta = cfg.hasRental ? "Аренда и займы" : "Только займы";
+        return `
+          <button class="contractor-card" data-open="${escapeHtml(name)}">
+            <div class="icon">👤</div>
+            <div class="name">${escapeHtml(name)}</div>
+            <div class="meta">${meta} · сальдо ${formatMoney(t.saldo)}</div>
+          </button>
+        `;
+      }).join("");
+
+      return `
+        <div class="hero">
+          <h1>Финансовый учёт</h1>
+          <p>Контрагенты и дебиторская задолженность</p>
+        </div>
+        <div class="contractors">
+          ${cards}
+          <button class="add-contractor" id="add-contractor">
+            <div class="icon">➕</div>
+            <div class="name">Добавить контрагента</div>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderProfile() {
+      const name = state.contractor;
+      const cfg = contractorConfig(name);
+      const t = totals(name);
+      const rows = visibleRecords();
+
+      const tabItems = [];
+      if (cfg.hasRental) tabItems.push(["rental", "Аренда помещения"]);
+      if (cfg.hasDtf) tabItems.push(["dtf", "Аренда ДТФ"]);
+      if (cfg.hasInvoices) tabItems.push(["invoices", "Счета"]);
+      tabItems.push(["debt", "Деньги в долг"]);
+      const tabs = `
+        <div class="tabs">
+          ${tabItems.map(([id, label]) => (
+            `<button class="tab ${state.tab === id ? "active" : ""}" data-tab="${id}">${label}</button>`
+          )).join("")}
+        </div>
+      `;
+
+      const subtabs = (cfg.hasRental && state.tab === "rental") ? `
+        <div class="subtabs">
+          <button class="subtab ${state.subTab === "Коммуналка" ? "active" : ""}" data-sub="Коммуналка">Коммуналка</button>
+          <button class="subtab ${state.subTab === "Аренда" ? "active" : ""}" data-sub="Аренда">Аренда</button>
+        </div>
+      ` : "";
+
+      const tableRows = rows.map((r) => `
+        <tr>
+          <td>${formatDate(r.date)}</td>
+          <td>${escapeHtml(r.category)}</td>
+          <td>
+            ${escapeHtml(r.subCategory || "—")}
+            ${r.month ? `<span class="cell-extra">${escapeHtml(r.month)}</span>` : ""}
+            ${r.invoiceNumber ? `<span class="cell-extra">№ ${escapeHtml(r.invoiceNumber)}</span>` : ""}
+            ${r.issueDate ? `<span class="cell-extra">выдача ${formatDate(r.issueDate)}</span>` : ""}
+          </td>
+          <td>${formatMoney(r.amount)}</td>
+          <td class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</td>
+          <td class="muted">${r.category === "Деньги в долг" ? formatMoney(r.profit) : "—"}</td>
+          <td>
+            <div class="actions">
+              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Редактировать" aria-label="Редактировать">✏️</button>
+              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" title="Удалить" aria-label="Удалить">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+
+      const cards = rows.map((r) => `
+        <div class="record-card">
+          <div class="row"><strong>${formatDate(r.date)}</strong><span class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</span></div>
+          <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
+          <div class="row muted">
+            <span>${r.category === "Деньги в долг" ? "Прибыль: " + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span>
+            <span class="actions">
+              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Редактировать">✏️</button>
+              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>
+            </span>
+          </div>
+        </div>
+      `).join("");
+
+      const body = rows.length ? `
+        <div class="table-scroll desktop-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Категория</th>
+                <th>Подкатегория</th>
+                <th>Сумма</th>
+                <th>Тип</th>
+                <th>Прибыль</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+        <div class="mobile-list">${cards}</div>
+      ` : `<div class="empty">Записей пока нет</div>`;
+
+      return `
+        <div class="topbar">
+          <button class="back-btn" id="back-home">← Назад</button>
+          <h1>Финансовый учёт</h1>
+        </div>
+        <div class="profile-name">${escapeHtml(name)}</div>
+        <div class="summary">
+          <div class="summary-card">
+            <div class="label">Дебет</div>
+            <div class="value">${formatMoney(t.debit)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Кредит</div>
+            <div class="value">${formatMoney(t.credit)}</div>
+          </div>
+          <div class="summary-card saldo">
+            <div class="label">Сальдо</div>
+            <div class="value ${t.saldo < 0 ? "negative" : ""}">${formatMoney(t.saldo)}</div>
+          </div>
+        </div>
+        ${tabs}
+        ${subtabs}
+        <div class="table-panel">${body}</div>
+        <button class="add-record" id="add-record">➕ Добавить запись</button>
+      `;
+    }
+
+    function bindView() {
+      document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
+      document.getElementById("back-home")?.addEventListener("click", () => {
+        state.view = "home";
+        state.contractor = null;
+        render();
+      });
+      document.getElementById("add-record")?.addEventListener("click", () => openRecordModal());
+
+      document.querySelectorAll("[data-open]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const name = btn.getAttribute("data-open");
+          openContractor(name);
+        });
+      });
+
+      document.querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.tab = btn.getAttribute("data-tab");
+          if (state.tab === "rental" && !RENTAL_SUBS.includes(state.subTab)) {
+            state.subTab = "Коммуналка";
+          }
+          render();
+        });
+      });
+
+      document.querySelectorAll("[data-sub]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.subTab = btn.getAttribute("data-sub");
+          render();
+        });
+      });
+
+      document.querySelectorAll("[data-edit]").forEach((btn) => {
+        btn.addEventListener("click", () => openRecordModal(btn.getAttribute("data-edit")));
+      });
+
+      document.querySelectorAll("[data-delete]").forEach((btn) => {
+        btn.addEventListener("click", () => askDelete(btn.getAttribute("data-delete")));
+      });
+    }
+
+    function openContractor(name) {
+      const cfg = contractorConfig(name);
+      state.view = "profile";
+      state.contractor = name;
+      state.tab = cfg.hasRental ? "rental" : "debt";
+      state.subTab = "Коммуналка";
+      render();
+    }
+
+    function fillSelect(el, items, selected) {
+      el.innerHTML = items.map((item) => {
+        const value = typeof item === "string" ? item : item.value;
+        const label = typeof item === "string" ? item : item.label;
+        return `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+      }).join("");
+    }
+
+    function syncRecordFields() {
+      const category = document.getElementById("field-category").value;
+      const isDebt = category === "Деньги в долг";
+      const isInvoice = category === "Счета";
+      const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
+
+      document.getElementById("category-field").classList.add("hidden");
+      document.getElementById("subcategory-field").classList.add("hidden");
+      document.getElementById("date-field").classList.toggle("hidden", isDebt);
+      document.getElementById("date-label").textContent = isInvoice ? "Дата счета" : "Дата";
+      document.getElementById("month-field").classList.toggle("hidden", !isPeriod);
+      document.getElementById("year-field").classList.toggle("hidden", !isPeriod);
+      document.getElementById("invoice-field").classList.toggle("hidden", !isInvoice);
+      document.getElementById("comment-field").classList.toggle("hidden", !isInvoice);
+      document.getElementById("issue-field").classList.toggle("hidden", !isDebt);
+      document.getElementById("return-field").classList.toggle("hidden", !isDebt);
+      document.getElementById("rate-field").classList.toggle("hidden", !isDebt);
+      document.getElementById("profit-preview").classList.toggle("hidden", !isDebt);
+      updateProfitPreview();
+    }
+
+    function updateProfitPreview() {
+      const amount = document.getElementById("field-amount").value;
+      const rate = document.getElementById("field-rate").value;
+      const issue = document.getElementById("field-issue").value;
+      const ret = document.getElementById("field-return").value;
+      const profit = calcProfit(amount, rate, issue, ret);
+      document.getElementById("profit-preview").textContent = "Прибыль: " + formatMoney(profit);
+    }
+
+    function setRecordType(type) {
+      state.recordType = type;
+      document.getElementById("type-debit").classList.toggle("active", type === "Дебет");
+      document.getElementById("type-credit").classList.toggle("active", type === "Кредит");
+    }
+
+    function openRecordModal(id) {
+      const form = document.getElementById("record-form");
+      form.reset();
+      document.getElementById("record-error").classList.remove("show");
+      state.editingId = id || null;
+      document.getElementById("record-title").textContent = id ? "Редактировать запись" : "Добавить запись";
+
+      fillSelect(document.getElementById("field-category"), availableCategories(state.contractor), currentCategory());
+      fillSelect(document.getElementById("field-subcategory"), RENTAL_SUBS, state.subTab || "Коммуналка");
+      fillSelect(document.getElementById("field-month"), MONTHS, MONTHS[new Date().getMonth()]);
+      const years = [];
+      for (let y = 2020; y <= 2030; y++) years.push(String(y));
+      fillSelect(document.getElementById("field-year"), years, String(new Date().getFullYear()));
+
+      document.getElementById("field-date").value = todayIso();
+      document.getElementById("field-issue").value = todayIso();
+      document.getElementById("field-rate").value = "0";
+      setRecordType("Дебет");
+
+      if (id) {
+        const rec = currentRecords().find((r) => r.id === id);
+        if (rec) {
+          document.getElementById("field-category").value = rec.category;
+          if (rec.subCategory && RENTAL_SUBS.includes(rec.subCategory)) {
+            document.getElementById("field-subcategory").value = rec.subCategory;
+          }
+          document.getElementById("field-amount").value = rec.amount;
+          document.getElementById("field-date").value = rec.date || "";
+          setRecordType(rec.type || "Дебет");
+          if (rec.month) {
+            const [monthName, year] = rec.month.split(" ");
+            if (MONTHS.includes(monthName)) document.getElementById("field-month").value = monthName;
+            if (year) document.getElementById("field-year").value = String(rec.year || year);
+          } else if (rec.year) {
+            document.getElementById("field-year").value = String(rec.year);
+          }
+          document.getElementById("field-invoice").value = rec.invoiceNumber || "";
+          document.getElementById("field-comment").value = rec.comment || "";
+          document.getElementById("field-issue").value = rec.issueDate || rec.date || "";
+          document.getElementById("field-return").value = rec.returnDate || "";
+          document.getElementById("field-rate").value = rec.interestRate ?? 0;
+        }
+      }
+
+      syncRecordFields();
+      document.getElementById("record-overlay").classList.add("open");
+      document.getElementById("field-amount").focus();
+    }
+
+    function closeRecordModal() {
+      document.getElementById("record-overlay").classList.remove("open");
+      state.editingId = null;
+    }
+
+    function submitRecord(event) {
+      event.preventDefault();
+      const error = document.getElementById("record-error");
+      const amount = Number(document.getElementById("field-amount").value);
+      const category = document.getElementById("field-category").value;
+      const isDebt = category === "Деньги в долг";
+      const isInvoice = category === "Счета";
+      const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
+      const issueDate = document.getElementById("field-issue").value || null;
+      const date = isDebt ? issueDate : document.getElementById("field-date").value;
+      if (!document.getElementById("field-amount").value || Number.isNaN(amount) || amount <= 0) {
+        error.textContent = "Укажите сумму";
+        error.classList.add("show");
+        return;
+      }
+      if (!date) {
+        error.textContent = isDebt ? "Укажите дату выдачи" : "Укажите дату";
+        error.classList.add("show");
+        return;
+      }
+
+      const subCategory = category === "Аренда помещения" ? document.getElementById("field-subcategory").value : null;
+      const monthName = document.getElementById("field-month").value;
+      const year = Number(document.getElementById("field-year").value);
+      const returnDate = document.getElementById("field-return").value || null;
+      const interestRate = Number(document.getElementById("field-rate").value) || 0;
+
+      const record = {
+        id: state.editingId || uid(),
+        category,
+        subCategory,
+        type: state.recordType,
+        amount,
+        date,
+        month: isPeriod ? `${monthName} ${year}` : null,
+        year: isPeriod ? year : null,
+        invoiceNumber: isInvoice ? document.getElementById("field-invoice").value.trim() : null,
+        comment: isInvoice ? document.getElementById("field-comment").value.trim() : "",
+        issueDate: isDebt ? issueDate : null,
+        returnDate: isDebt ? returnDate : null,
+        interestRate: isDebt ? interestRate : null,
+        profit: isDebt ? calcProfit(amount, interestRate, issueDate, returnDate) : 0
+      };
+
+      const list = db.contractors[state.contractor].records;
+      const idx = list.findIndex((r) => r.id === record.id);
+      if (idx >= 0) list[idx] = record;
+      else list.push(record);
+      saveData(db);
+      closeRecordModal();
+      render();
+      showToast(idx >= 0 ? "Запись обновлена" : "Запись сохранена");
+    }
+
+    function askDelete(id) {
+      state.pendingDeleteId = id;
+      document.getElementById("confirm-overlay").classList.add("open");
+    }
+
+    function confirmDelete() {
+      const id = state.pendingDeleteId;
+      if (!id) return;
+      db.contractors[state.contractor].records = currentRecords().filter((r) => r.id !== id);
+      saveData(db);
+      state.pendingDeleteId = null;
+      document.getElementById("confirm-overlay").classList.remove("open");
+      render();
+      showToast("Запись удалена");
+    }
+
+    function openContractorModal() {
+      document.getElementById("contractor-form").reset();
+      document.getElementById("contractor-error").classList.remove("show");
+      document.getElementById("contractor-overlay").classList.add("open");
+      document.getElementById("field-contractor-name").focus();
+    }
+
+    function closeContractorModal() {
+      document.getElementById("contractor-overlay").classList.remove("open");
+    }
+
+    function submitContractor(event) {
+      event.preventDefault();
+      const error = document.getElementById("contractor-error");
+      const name = document.getElementById("field-contractor-name").value.trim();
+      if (!name) {
+        error.textContent = "Введите имя контрагента";
+        error.classList.add("show");
+        return;
+      }
+      if (db.contractors[name]) {
+        error.textContent = "Контрагент с таким именем уже существует";
+        error.classList.add("show");
+        return;
+      }
+      db.contractors[name] = { records: [] };
+      saveData(db);
+      closeContractorModal();
+      render();
+      showToast("Контрагент добавлен");
+    }
+
+    function closeOverlays() {
+      closeRecordModal();
+      closeContractorModal();
+      document.getElementById("confirm-overlay").classList.remove("open");
+      state.pendingDeleteId = null;
+    }
+
+    document.getElementById("record-form").addEventListener("submit", submitRecord);
+    document.getElementById("record-cancel").addEventListener("click", closeRecordModal);
+    document.getElementById("field-category").addEventListener("change", () => {
+      if (document.getElementById("field-category").value === "Аренда помещения") {
+        fillSelect(document.getElementById("field-subcategory"), RENTAL_SUBS, state.subTab || "Коммуналка");
+      }
+      syncRecordFields();
+    });
+    document.getElementById("field-subcategory").addEventListener("change", syncRecordFields);
+    ["field-amount", "field-rate", "field-issue", "field-return"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", updateProfitPreview);
+    });
+    document.getElementById("type-debit").addEventListener("click", () => setRecordType("Дебет"));
+    document.getElementById("type-credit").addEventListener("click", () => setRecordType("Кредит"));
+    document.getElementById("contractor-form").addEventListener("submit", submitContractor);
+    document.getElementById("contractor-cancel").addEventListener("click", closeContractorModal);
+    document.getElementById("confirm-cancel").addEventListener("click", () => {
+      document.getElementById("confirm-overlay").classList.remove("open");
+      state.pendingDeleteId = null;
+    });
+    document.getElementById("confirm-ok").addEventListener("click", confirmDelete);
+    document.getElementById("record-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "record-overlay") closeRecordModal();
+    });
+    document.getElementById("contractor-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "contractor-overlay") closeContractorModal();
+    });
+    document.getElementById("confirm-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "confirm-overlay") {
+        document.getElementById("confirm-overlay").classList.remove("open");
+        state.pendingDeleteId = null;
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeOverlays();
+    });
+
+    render();
+  </script>
+</body>
+</html>
