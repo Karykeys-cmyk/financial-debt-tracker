@@ -160,15 +160,26 @@
       line-height: 1.4;
     }
 
+    .home-totals {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 0 0 24px;
+    }
+
+    .home-totals .summary-card .value.profit {
+      color: var(--saldo-plus);
+    }
+
     .contractors {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 16px;
     }
 
     .contractor-card,
     .add-contractor {
-      min-height: 160px;
+      min-height: 180px;
       border-radius: 16px;
       background: var(--card);
       box-shadow: var(--shadow);
@@ -203,6 +214,37 @@
       font-size: 0.85rem;
       color: var(--text-secondary);
       text-align: center;
+    }
+
+    .card-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .card-stats .stat {
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+
+    .card-stats .stat-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .card-stats .stat-value {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    .card-stats .stat-value.profit {
+      color: var(--saldo-plus);
     }
 
     .contractor-card.overdue {
@@ -249,7 +291,7 @@
 
     .summary {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 14px;
       margin-bottom: 24px;
     }
@@ -272,9 +314,13 @@
     }
 
     .summary-card .value {
-      font-size: clamp(1.2rem, 2.6vw, 1.65rem);
+      font-size: clamp(1.05rem, 2.4vw, 1.65rem);
       font-weight: 700;
       color: var(--debit);
+    }
+
+    .summary-card .value.profit {
+      color: var(--saldo-plus);
     }
 
     .summary-card.saldo .value.positive {
@@ -692,9 +738,12 @@
       white-space: normal;
     }
 
+    @media (max-width: 900px) {
+      .summary { grid-template-columns: repeat(2, 1fr); }
+    }
+
     @media (max-width: 760px) {
       .app { padding: 18px 14px 36px; }
-      .summary { grid-template-columns: 1fr; }
       .desktop-table { display: none; }
       .mobile-list { display: flex; }
       .table-panel { overflow: visible; }
@@ -1170,6 +1219,33 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return { debit, credit, saldo: debit - credit };
     }
 
+    function outstandingLoans(name) {
+      const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг");
+      let debit = 0;
+      let credit = 0;
+      records.forEach((r) => {
+        if (r.type === "Кредит") credit += Number(r.amount) || 0;
+        else debit += Number(r.amount) || 0;
+      });
+      return debit - credit;
+    }
+
+    function interestProfit(name) {
+      return (db.contractors[name]?.records || [])
+        .filter((r) => r.category === "Деньги в долг" && r.type !== "Кредит")
+        .reduce((sum, r) => sum + (Number(r.profit) || 0), 0);
+    }
+
+    function globalDebtAndProfit() {
+      let debt = 0;
+      let profit = 0;
+      contractorNames().forEach((name) => {
+        debt += outstandingLoans(name);
+        profit += interestProfit(name);
+      });
+      return { debt, profit };
+    }
+
     function overdueLoanIds(name) {
       const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг");
       const loans = records
@@ -1254,16 +1330,28 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function renderHome() {
+      const totalsAll = globalDebtAndProfit();
       const cards = contractorNames().map((name) => {
         const cfg = contractorConfig(name);
         const t = totals(name);
+        const profit = interestProfit(name);
         const overdue = hasOverdueDebt(name);
         const meta = cfg.hasRental ? "Аренда и займы" : "Только займы";
         return `
           <button class="contractor-card ${overdue ? "overdue" : ""}" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
-            <div class="meta">${meta} · сальдо <span class="saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</span></div>
+            <div class="meta">${meta}</div>
+            <div class="card-stats">
+              <div class="stat">
+                <div class="stat-label">Сальдо</div>
+                <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Прибыль</div>
+                <div class="stat-value profit">${formatMoney(profit)}</div>
+              </div>
+            </div>
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
           </button>
         `;
@@ -1277,6 +1365,16 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <span class="sync-status ${syncState.status}" id="sync-status">${escapeHtml(syncState.message)}</span>
             <button type="button" class="sync-btn" id="sync-now">↻ Синхронизировать</button>
             <button type="button" class="sync-btn" id="sync-settings">Настройки синхронизации</button>
+          </div>
+        </div>
+        <div class="home-totals">
+          <div class="summary-card saldo">
+            <div class="label">Сумма долгов</div>
+            <div class="value ${saldoTone(totalsAll.debt)}">${formatMoney(totalsAll.debt)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Прибыль по процентам</div>
+            <div class="value profit">${formatMoney(totalsAll.profit)}</div>
           </div>
         </div>
         <div class="contractors">
@@ -1293,6 +1391,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const name = state.contractor;
       const cfg = contractorConfig(name);
       const t = totals(name, true);
+      const allTimeProfit = interestProfit(name);
       const rows = visibleRecords();
 
       const tabItems = [];
@@ -1437,6 +1536,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <div class="summary-card saldo">
             <div class="label">Сальдо</div>
             <div class="value ${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Прибыль за всё время</div>
+            <div class="value profit">${formatMoney(allTimeProfit)}</div>
           </div>
         </div>
         ${tabs}
