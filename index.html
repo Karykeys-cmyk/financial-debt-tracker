@@ -273,6 +273,52 @@
       max-width: 200px;
     }
 
+    .analytics {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+
+    .analytics-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+    }
+
+    .analytics-head .title {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-right: 4px;
+    }
+
+    .analytics-head select {
+      min-width: 160px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      outline: none;
+    }
+
+    .analytics-head select option {
+      background: #121f3a;
+      color: #fff;
+    }
+
+    .analytics-caption {
+      margin-top: 10px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
     .table-toolbar {
       display: flex;
       align-items: center;
@@ -711,6 +757,9 @@
       tab: "rental",
       subTab: "Коммуналка",
       paymentFilter: "Все",
+      periodMode: "all",
+      periodYear: String(new Date().getFullYear()),
+      periodMonth: String(new Date().getMonth() + 1),
       editingId: null,
       recordType: "Дебет",
       pendingDeleteId: null
@@ -820,8 +869,54 @@
       return db.contractors[state.contractor]?.records || [];
     }
 
-    function totals(name) {
-      const records = db.contractors[name]?.records || [];
+    function recordYearMonth(record) {
+      if (record.year) {
+        const monthName = String(record.month || "").split(" ")[0];
+        const monthIndex = MONTHS.indexOf(monthName);
+        if (monthIndex >= 0) return { year: Number(record.year), month: monthIndex + 1 };
+      }
+      const iso = record.date || record.issueDate;
+      if (!iso || !/^\d{4}-\d{2}/.test(iso)) return null;
+      return { year: Number(iso.slice(0, 4)), month: Number(iso.slice(5, 7)) };
+    }
+
+    function inSelectedPeriod(record) {
+      if (state.periodMode === "all") return true;
+      const ym = recordYearMonth(record);
+      if (!ym) return false;
+      if (Number(ym.year) !== Number(state.periodYear)) return false;
+      if (state.periodMode === "month" && Number(ym.month) !== Number(state.periodMonth)) return false;
+      return true;
+    }
+
+    function periodYears() {
+      const years = new Set();
+      const now = new Date().getFullYear();
+      for (let y = 2020; y <= Math.max(now, 2030); y++) years.add(y);
+      currentRecords().forEach((r) => {
+        const ym = recordYearMonth(r);
+        if (ym && ym.year) years.add(ym.year);
+      });
+      return [...years].sort((a, b) => b - a);
+    }
+
+    function periodRangeLabel() {
+      if (state.periodMode === "year") return String(state.periodYear);
+      if (state.periodMode === "month") {
+        const monthName = MONTHS[Number(state.periodMonth) - 1] || "";
+        return `${monthName} ${state.periodYear}`;
+      }
+      const dates = currentRecords()
+        .map((r) => r.date || r.issueDate)
+        .filter((d) => d && /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .sort();
+      if (!dates.length) return "с начала задолженностей по текущую дату";
+      return `с ${formatDate(dates[0])} по ${formatDate(todayIso())}`;
+    }
+
+    function totals(name, usePeriod) {
+      let records = db.contractors[name]?.records || [];
+      if (usePeriod) records = records.filter(inSelectedPeriod);
       let debit = 0;
       let credit = 0;
       records.forEach((r) => {
@@ -865,6 +960,7 @@
           if (state.paymentFilter !== "Все" && (r.paymentMethod || "") !== state.paymentFilter) {
             return false;
           }
+          if (!inSelectedPeriod(r)) return false;
           return true;
         })
         .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.id || "").localeCompare(a.id || ""));
@@ -920,7 +1016,7 @@
     function renderProfile() {
       const name = state.contractor;
       const cfg = contractorConfig(name);
-      const t = totals(name);
+      const t = totals(name, true);
       const rows = visibleRecords();
 
       const tabItems = [];
@@ -983,10 +1079,16 @@
         </div>
       `).join("");
 
-      const emptyText = currentRecords().some((r) => {
+      const tabRecords = currentRecords().filter((r) => {
         if (state.tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
         return r.category === currentCategory();
-      }) ? "Нет записей с таким способом оплаты" : "Записей пока нет";
+      });
+      let emptyText = "Записей пока нет";
+      if (tabRecords.length && !rows.length) {
+        emptyText = state.paymentFilter !== "Все"
+          ? "Нет записей с таким способом оплаты"
+          : "Нет записей за выбранный период";
+      }
 
       const body = rows.length ? `
         <div class="table-scroll desktop-table">
@@ -1026,6 +1128,23 @@
           <h1>Финансовый учёт</h1>
         </div>
         <div class="profile-name">${escapeHtml(name)}</div>
+        <div class="analytics">
+          <div class="analytics-head">
+            <span class="title">Период</span>
+            <select id="filter-period-mode">
+              <option value="all" ${state.periodMode === "all" ? "selected" : ""}>Весь период</option>
+              <option value="year" ${state.periodMode === "year" ? "selected" : ""}>Год</option>
+              <option value="month" ${state.periodMode === "month" ? "selected" : ""}>Месяц</option>
+            </select>
+            <select id="filter-period-year" class="${state.periodMode === "all" ? "hidden" : ""}">
+              ${periodYears().map((y) => `<option value="${y}" ${String(y) === String(state.periodYear) ? "selected" : ""}>${y}</option>`).join("")}
+            </select>
+            <select id="filter-period-month" class="${state.periodMode === "month" ? "" : "hidden"}">
+              ${MONTHS.map((label, i) => `<option value="${i + 1}" ${String(i + 1) === String(state.periodMonth) ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
+          </div>
+          <div class="analytics-caption">${escapeHtml(periodRangeLabel())}</div>
+        </div>
         <div class="summary">
           <div class="summary-card">
             <div class="label">Дебет</div>
@@ -1058,6 +1177,18 @@
       document.getElementById("add-record")?.addEventListener("click", () => openRecordModal());
       document.getElementById("filter-payment")?.addEventListener("change", (e) => {
         state.paymentFilter = e.target.value;
+        render();
+      });
+      document.getElementById("filter-period-mode")?.addEventListener("change", (e) => {
+        state.periodMode = e.target.value;
+        render();
+      });
+      document.getElementById("filter-period-year")?.addEventListener("change", (e) => {
+        state.periodYear = e.target.value;
+        render();
+      });
+      document.getElementById("filter-period-month")?.addEventListener("change", (e) => {
+        state.periodMonth = e.target.value;
         render();
       });
 
@@ -1101,6 +1232,9 @@
       state.tab = cfg.hasRental ? "rental" : "debt";
       state.subTab = "Коммуналка";
       state.paymentFilter = "Все";
+      state.periodMode = "all";
+      state.periodYear = String(new Date().getFullYear());
+      state.periodMonth = String(new Date().getMonth() + 1);
       render();
     }
 
