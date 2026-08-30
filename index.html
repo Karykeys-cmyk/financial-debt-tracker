@@ -773,7 +773,7 @@
   <div class="overlay" id="sync-overlay" role="dialog" aria-modal="true">
     <form class="modal" id="sync-form">
       <h2>Синхронизация</h2>
-      <p class="confirm-text">Чтобы данные совпадали на телефонах и компьютере, один раз вставьте ключ anon из Supabase и выполните SQL в редакторе базы.</p>
+      <p class="confirm-text">Ключ проекта уже задан. Осталось один раз создать таблицу: выполните SQL ниже в SQL Editor или сделайте supabase db push.</p>
       <div class="field">
         <label for="field-sync-url">Адрес проекта</label>
         <input id="field-sync-url" type="url" />
@@ -796,6 +796,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
@@ -913,32 +914,27 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function setSyncConfig(cfg) {
       localStorage.setItem(SYNC_KEY, JSON.stringify(cfg));
+      supabaseClient = null;
     }
 
-    async function readSyncError(res) {
-      const text = await res.text();
-      try {
-        const json = JSON.parse(text);
-        if (/finance_state/i.test(text) && /does not exist|schema cache|PGRST205/i.test(text)) {
-          return "Таблица finance_state не найдена. Выполните SQL из настроек.";
-        }
-        return json.message || json.hint || text || "Ошибка облака";
-      } catch (err) {
-        return text || "Ошибка облака";
+    let supabaseClient = null;
+
+    function getSupabase() {
+      const { url, key } = getSyncConfig();
+      if (!url || !key) return null;
+      if (!window.supabase || !window.supabase.createClient) {
+        throw new Error("Клиент Supabase не загрузился. Проверьте интернет.");
       }
+      if (!supabaseClient) supabaseClient = window.supabase.createClient(url, key);
+      return supabaseClient;
     }
 
-    function syncHeaders() {
-      const { key } = getSyncConfig();
-      const headers = {
-        apikey: key,
-        "Content-Type": "application/json",
-        Prefer: "return=representation,resolution=merge-duplicates"
-      };
-      if (key && !key.startsWith("sb_")) {
-        headers.Authorization = "Bearer " + key;
+    function formatSupabaseError(error) {
+      const text = [error?.message, error?.hint, error?.code].filter(Boolean).join(" ");
+      if (/finance_state/i.test(text) && /schema cache|does not exist|PGRST205/i.test(text)) {
+        return "Таблица finance_state не найдена. Выполните SQL из настроек.";
       }
-      return headers;
+      return error?.message || text || "Ошибка облака";
     }
 
     function setSyncStatus(status, message) {
@@ -975,37 +971,27 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     async function fetchRemote() {
-      const { url, key } = getSyncConfig();
-      if (!key) return null;
-      const res = await fetch(url + "/rest/v1/finance_state?id=eq.main&select=payload,updated_at", {
-        headers: syncHeaders()
-      });
-      if (res.status === 404 || res.status === 406) {
-        throw new Error("Таблица finance_state не найдена. Выполните SQL из настроек.");
-      }
-      if (!res.ok) {
-        throw new Error(await readSyncError(res));
-      }
-      const rows = await res.json();
-      return rows[0] || null;
+      const client = getSupabase();
+      if (!client) return null;
+      const { data, error } = await client
+        .from("finance_state")
+        .select("payload,updated_at")
+        .eq("id", "main")
+        .maybeSingle();
+      if (error) throw new Error(formatSupabaseError(error));
+      return data;
     }
 
     async function pushRemote() {
-      const { url, key } = getSyncConfig();
-      if (!key) return;
+      const client = getSupabase();
+      if (!client) return;
       setSyncStatus("busy", "Сохранение в облако…");
-      const res = await fetch(url + "/rest/v1/finance_state", {
-        method: "POST",
-        headers: syncHeaders(),
-        body: JSON.stringify({
-          id: "main",
-          payload: db,
-          updated_at: new Date().toISOString()
-        })
+      const { error } = await client.from("finance_state").upsert({
+        id: "main",
+        payload: db,
+        updated_at: new Date().toISOString()
       });
-      if (!res.ok) {
-        throw new Error(await readSyncError(res));
-      }
+      if (error) throw new Error(formatSupabaseError(error));
       setSyncStatus("ok", "Синхронизировано с облаком");
     }
 
