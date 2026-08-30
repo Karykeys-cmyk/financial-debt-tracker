@@ -544,11 +544,11 @@
   <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
     <form class="modal" id="record-form">
       <h2 id="record-title">Добавить запись</h2>
-      <div class="field" id="category-field">
+      <div class="field hidden" id="category-field">
         <label for="field-category">Категория</label>
         <select id="field-category"></select>
       </div>
-      <div class="field" id="subcategory-field">
+      <div class="field hidden" id="subcategory-field">
         <label for="field-subcategory">Подкатегория</label>
         <select id="field-subcategory"></select>
       </div>
@@ -556,9 +556,9 @@
         <label for="field-amount">Сумма</label>
         <input id="field-amount" type="number" min="0.01" step="0.01" placeholder="0" required />
       </div>
-      <div class="field">
-        <label for="field-date">Дата</label>
-        <input id="field-date" type="date" required />
+      <div class="field" id="date-field">
+        <label for="field-date" id="date-label">Дата</label>
+        <input id="field-date" type="date" />
       </div>
       <div class="field">
         <label>Тип</label>
@@ -639,9 +639,10 @@
       "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
     ];
     const SPECIAL = {
-      "Даня": { hasRental: true, hasDtf: true },
-      "Максюшка": { hasRental: true, hasDtf: false }
+      "Даня": { hasRental: true, hasDtf: true, hasInvoices: true },
+      "Максюшка": { hasRental: true, hasDtf: false, hasInvoices: true }
     };
+    const RENTAL_SUBS = ["Коммуналка", "Аренда"];
 
     const state = {
       view: "home",
@@ -654,7 +655,19 @@
     };
 
     function contractorConfig(name) {
-      return SPECIAL[name] || { hasRental: false, hasDtf: false };
+      return SPECIAL[name] || { hasRental: false, hasDtf: false, hasInvoices: false };
+    }
+
+    function migrateRecord(record) {
+      const r = { ...record };
+      if (r.category === "Аренда помещения" && r.subCategory === "Аренда ДТФ") {
+        r.category = "Аренда ДТФ";
+        r.subCategory = null;
+      } else if (r.category === "Аренда помещения" && r.subCategory === "Счета") {
+        r.category = "Счета";
+        r.subCategory = null;
+      }
+      return r;
     }
 
     function defaultData() {
@@ -673,6 +686,10 @@
         if (!data.contractors) data.contractors = {};
         if (!data.contractors["Даня"]) data.contractors["Даня"] = { records: [] };
         if (!data.contractors["Максюшка"]) data.contractors["Максюшка"] = { records: [] };
+        Object.keys(data.contractors).forEach((name) => {
+          const list = data.contractors[name].records || [];
+          data.contractors[name].records = list.map(migrateRecord);
+        });
         return data;
       } catch (err) {
         return defaultData();
@@ -684,6 +701,7 @@
     }
 
     let db = loadData();
+    saveData(db);
 
     function uid() {
       return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -751,14 +769,30 @@
       return { debit, credit, saldo: debit - credit };
     }
 
+    function currentCategory() {
+      if (state.tab === "dtf") return "Аренда ДТФ";
+      if (state.tab === "invoices") return "Счета";
+      if (state.tab === "debt") return "Деньги в долг";
+      return "Аренда помещения";
+    }
+
+    function availableCategories(name) {
+      const cfg = contractorConfig(name);
+      const cats = [];
+      if (cfg.hasRental) cats.push("Аренда помещения");
+      if (cfg.hasDtf) cats.push("Аренда ДТФ");
+      if (cfg.hasInvoices) cats.push("Счета");
+      cats.push("Деньги в долг");
+      return cats;
+    }
+
     function visibleRecords() {
-      const cfg = contractorConfig(state.contractor);
       return currentRecords()
         .filter((r) => {
-          if (!cfg.hasRental || state.tab === "debt") {
-            return r.category === "Деньги в долг";
+          if (state.tab === "rental") {
+            return r.category === "Аренда помещения" && r.subCategory === state.subTab;
           }
-          return r.category === "Аренда помещения" && r.subCategory === state.subTab;
+          return r.category === currentCategory();
         })
         .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.id || "").localeCompare(a.id || ""));
     }
@@ -816,22 +850,23 @@
       const t = totals(name);
       const rows = visibleRecords();
 
-      const tabs = cfg.hasRental ? `
+      const tabItems = [];
+      if (cfg.hasRental) tabItems.push(["rental", "Аренда помещения"]);
+      if (cfg.hasDtf) tabItems.push(["dtf", "Аренда ДТФ"]);
+      if (cfg.hasInvoices) tabItems.push(["invoices", "Счета"]);
+      tabItems.push(["debt", "Деньги в долг"]);
+      const tabs = `
         <div class="tabs">
-          <button class="tab ${state.tab === "rental" ? "active" : ""}" data-tab="rental">Аренда помещения</button>
-          <button class="tab ${state.tab === "debt" ? "active" : ""}" data-tab="debt">Деньги в долг</button>
-        </div>
-      ` : `
-        <div class="tabs">
-          <button class="tab active" data-tab="debt">Деньги в долг</button>
+          ${tabItems.map(([id, label]) => (
+            `<button class="tab ${state.tab === id ? "active" : ""}" data-tab="${id}">${label}</button>`
+          )).join("")}
         </div>
       `;
 
       const subtabs = (cfg.hasRental && state.tab === "rental") ? `
         <div class="subtabs">
           <button class="subtab ${state.subTab === "Коммуналка" ? "active" : ""}" data-sub="Коммуналка">Коммуналка</button>
-          ${cfg.hasDtf ? `<button class="subtab ${state.subTab === "Аренда ДТФ" ? "active" : ""}" data-sub="Аренда ДТФ">Аренда ДТФ</button>` : ""}
-          <button class="subtab ${state.subTab === "Счета" ? "active" : ""}" data-sub="Счета">Счета</button>
+          <button class="subtab ${state.subTab === "Аренда" ? "active" : ""}" data-sub="Аренда">Аренда</button>
         </div>
       ` : "";
 
@@ -937,7 +972,7 @@
       document.querySelectorAll("[data-tab]").forEach((btn) => {
         btn.addEventListener("click", () => {
           state.tab = btn.getAttribute("data-tab");
-          if (state.tab === "rental" && state.subTab === "Аренда ДТФ" && !contractorConfig(state.contractor).hasDtf) {
+          if (state.tab === "rental" && !RENTAL_SUBS.includes(state.subTab)) {
             state.subTab = "Коммуналка";
           }
           render();
@@ -977,33 +1012,16 @@
       }).join("");
     }
 
-    function currentCategory() {
-      const cfg = contractorConfig(state.contractor);
-      if (!cfg.hasRental || state.tab === "debt") return "Деньги в долг";
-      return "Аренда помещения";
-    }
-
-    function currentSubcategory() {
-      if (currentCategory() === "Деньги в долг") return null;
-      return state.subTab;
-    }
-
-    function rentalSubs() {
-      const cfg = contractorConfig(state.contractor);
-      const list = ["Коммуналка"];
-      if (cfg.hasDtf) list.push("Аренда ДТФ");
-      list.push("Счета");
-      return list;
-    }
-
     function syncRecordFields() {
       const category = document.getElementById("field-category").value;
-      const sub = document.getElementById("field-subcategory").value;
       const isDebt = category === "Деньги в долг";
-      const isInvoice = !isDebt && sub === "Счета";
-      const isPeriod = !isDebt && (sub === "Коммуналка" || sub === "Аренда ДТФ");
+      const isInvoice = category === "Счета";
+      const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
 
-      document.getElementById("subcategory-field").classList.toggle("hidden", isDebt);
+      document.getElementById("category-field").classList.add("hidden");
+      document.getElementById("subcategory-field").classList.add("hidden");
+      document.getElementById("date-field").classList.toggle("hidden", isDebt);
+      document.getElementById("date-label").textContent = isInvoice ? "Дата счета" : "Дата";
       document.getElementById("month-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("year-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("invoice-field").classList.toggle("hidden", !isInvoice);
@@ -1031,16 +1049,14 @@
     }
 
     function openRecordModal(id) {
-      const cfg = contractorConfig(state.contractor);
       const form = document.getElementById("record-form");
       form.reset();
       document.getElementById("record-error").classList.remove("show");
       state.editingId = id || null;
       document.getElementById("record-title").textContent = id ? "Редактировать запись" : "Добавить запись";
 
-      const cats = cfg.hasRental ? ["Аренда помещения", "Деньги в долг"] : ["Деньги в долг"];
-      fillSelect(document.getElementById("field-category"), cats, currentCategory());
-      fillSelect(document.getElementById("field-subcategory"), rentalSubs(), currentSubcategory() || "Коммуналка");
+      fillSelect(document.getElementById("field-category"), availableCategories(state.contractor), currentCategory());
+      fillSelect(document.getElementById("field-subcategory"), RENTAL_SUBS, state.subTab || "Коммуналка");
       fillSelect(document.getElementById("field-month"), MONTHS, MONTHS[new Date().getMonth()]);
       const years = [];
       for (let y = 2020; y <= 2030; y++) years.push(String(y));
@@ -1055,7 +1071,9 @@
         const rec = currentRecords().find((r) => r.id === id);
         if (rec) {
           document.getElementById("field-category").value = rec.category;
-          if (rec.subCategory) document.getElementById("field-subcategory").value = rec.subCategory;
+          if (rec.subCategory && RENTAL_SUBS.includes(rec.subCategory)) {
+            document.getElementById("field-subcategory").value = rec.subCategory;
+          }
           document.getElementById("field-amount").value = rec.amount;
           document.getElementById("field-date").value = rec.date || "";
           setRecordType(rec.type || "Дебет");
@@ -1074,7 +1092,6 @@
         }
       }
 
-      document.getElementById("category-field").classList.toggle("hidden", !cfg.hasRental);
       syncRecordFields();
       document.getElementById("record-overlay").classList.add("open");
       document.getElementById("field-amount").focus();
@@ -1089,26 +1106,26 @@
       event.preventDefault();
       const error = document.getElementById("record-error");
       const amount = Number(document.getElementById("field-amount").value);
-      const date = document.getElementById("field-date").value;
+      const category = document.getElementById("field-category").value;
+      const isDebt = category === "Деньги в долг";
+      const isInvoice = category === "Счета";
+      const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
+      const issueDate = document.getElementById("field-issue").value || null;
+      const date = isDebt ? issueDate : document.getElementById("field-date").value;
       if (!document.getElementById("field-amount").value || Number.isNaN(amount) || amount <= 0) {
         error.textContent = "Укажите сумму";
         error.classList.add("show");
         return;
       }
       if (!date) {
-        error.textContent = "Укажите дату";
+        error.textContent = isDebt ? "Укажите дату выдачи" : "Укажите дату";
         error.classList.add("show");
         return;
       }
 
-      const category = document.getElementById("field-category").value;
       const subCategory = category === "Аренда помещения" ? document.getElementById("field-subcategory").value : null;
       const monthName = document.getElementById("field-month").value;
       const year = Number(document.getElementById("field-year").value);
-      const isDebt = category === "Деньги в долг";
-      const isInvoice = subCategory === "Счета";
-      const isPeriod = subCategory === "Коммуналка" || subCategory === "Аренда ДТФ";
-      const issueDate = document.getElementById("field-issue").value || null;
       const returnDate = document.getElementById("field-return").value || null;
       const interestRate = Number(document.getElementById("field-rate").value) || 0;
 
@@ -1198,7 +1215,7 @@
     document.getElementById("record-cancel").addEventListener("click", closeRecordModal);
     document.getElementById("field-category").addEventListener("change", () => {
       if (document.getElementById("field-category").value === "Аренда помещения") {
-        fillSelect(document.getElementById("field-subcategory"), rentalSubs(), rentalSubs()[0]);
+        fillSelect(document.getElementById("field-subcategory"), RENTAL_SUBS, state.subTab || "Коммуналка");
       }
       syncRecordFields();
     });
