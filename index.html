@@ -642,7 +642,7 @@
       </div>
       <div class="field" id="payment-field">
         <label for="field-payment">Способ оплаты</label>
-        <select id="field-payment" required></select>
+        <select id="field-payment"></select>
       </div>
       <div class="field" id="comment-field">
         <label for="field-comment">Комментарий</label>
@@ -1126,7 +1126,7 @@
       document.getElementById("year-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("invoice-field").classList.toggle("hidden", !isInvoice);
       document.getElementById("comment-field").classList.remove("hidden");
-      document.getElementById("payment-field").classList.remove("hidden");
+      document.getElementById("payment-field").classList.toggle("hidden", state.recordType !== "Кредит");
       document.getElementById("issue-field").classList.toggle("hidden", !isDebt);
       document.getElementById("return-field").classList.toggle("hidden", !isDebt);
       document.getElementById("rate-field").classList.toggle("hidden", !isDebt);
@@ -1147,6 +1147,7 @@
       state.recordType = type;
       document.getElementById("type-debit").classList.toggle("active", type === "Дебет");
       document.getElementById("type-credit").classList.toggle("active", type === "Кредит");
+      syncRecordFields();
     }
 
     function openRecordModal(id) {
@@ -1228,8 +1229,9 @@
         error.classList.add("show");
         return;
       }
-      const paymentMethod = document.getElementById("field-payment").value;
-      if (!paymentMethod) {
+      const isCredit = state.recordType === "Кредит";
+      const paymentMethod = isCredit ? document.getElementById("field-payment").value : null;
+      if (isCredit && !paymentMethod) {
         error.textContent = "Укажите способ оплаты";
         error.classList.add("show");
         return;
