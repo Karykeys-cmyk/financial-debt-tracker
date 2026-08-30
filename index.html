@@ -667,13 +667,17 @@
     .add-record {
       width: 100%;
       padding: 16px;
-      margin: 4px 0 20px;
+      margin: 0 0 12px;
       border-radius: 16px;
       background: var(--accent);
       color: #fff;
       font-weight: 650;
       box-shadow: var(--shadow);
       transition: transform 0.3s, filter 0.3s;
+    }
+
+    .records-head {
+      margin: 8px 0 0;
     }
 
     .add-record:hover {
@@ -1860,10 +1864,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           `).join("")}
         </div>
         ` : ""}
-        <button class="add-record" id="add-record">➕ Добавить запись</button>
         ${tabs}
         ${subtabs}
-        ${paymentFilter}
+        <div class="records-head">
+          <button class="add-record" id="add-record">➕ Добавить запись</button>
+          ${paymentFilter}
+        </div>
         <div class="table-panel ${state.recordsCollapsed ? "hidden" : ""}">${body}</div>
         ${state.recordsCollapsed ? `<div class="empty">Записи свёрнуты</div>` : ""}
       `;
