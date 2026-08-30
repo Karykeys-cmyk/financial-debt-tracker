@@ -82,6 +82,7 @@
       font-size: 1.55rem;
       font-weight: 700;
       letter-spacing: -0.02em;
+      flex: 1;
     }
 
     .back-btn {
@@ -169,6 +170,41 @@
 
     .home-totals .summary-card .value.profit {
       color: var(--saldo-plus);
+    }
+
+    .home-totals .summary-card .value.loss,
+    .summary-card .value.loss,
+    .card-stats .stat-value.loss {
+      color: var(--saldo-minus);
+    }
+
+    .contractor-card-wrap {
+      position: relative;
+      min-width: 0;
+    }
+
+    .contractor-card-wrap .contractor-card {
+      width: 100%;
+      height: 100%;
+    }
+
+    .card-delete {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+
+    .card-delete:hover {
+      background: rgba(255, 107, 107, 0.25);
+      color: var(--danger);
     }
 
     .contractors {
@@ -356,7 +392,7 @@
 
     .summary {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 14px;
       margin-bottom: 24px;
     }
@@ -728,6 +764,11 @@
       font-weight: 650;
     }
 
+    .profit-preview.loss {
+      background: rgba(255, 107, 107, 0.12);
+      color: var(--saldo-minus);
+    }
+
     .modal-actions {
       display: flex;
       gap: 10px;
@@ -845,6 +886,13 @@
           <button type="button" class="credit" data-type="Кредит" id="type-credit">Кредит</button>
         </div>
       </div>
+      <div class="field hidden" id="loanside-field">
+        <label>Займ</label>
+        <div class="type-toggle">
+          <button type="button" class="active debit" id="side-out">Выдали</button>
+          <button type="button" class="credit" id="side-in">Взяли</button>
+        </div>
+      </div>
       <div class="field hidden" id="month-field">
         <label for="field-month">Месяц</label>
         <select id="field-month"></select>
@@ -858,11 +906,11 @@
         <input id="field-invoice" type="text" placeholder="Например, СЧ-104" />
       </div>
       <div class="field hidden" id="issue-field">
-        <label for="field-issue">Дата выдачи</label>
+        <label for="field-issue" id="issue-label">Дата выдачи</label>
         <input id="field-issue" type="date" />
       </div>
       <div class="field hidden" id="return-field">
-        <label for="field-return">Срок возврата</label>
+        <label for="field-return" id="return-label">Срок возврата</label>
         <input id="field-return" type="date" />
       </div>
       <div class="field hidden" id="rate-field">
@@ -903,8 +951,8 @@
 
   <div class="overlay" id="confirm-overlay" role="dialog" aria-modal="true">
     <div class="modal">
-      <h2>Удалить запись?</h2>
-      <p class="confirm-text">Это действие нельзя отменить.</p>
+      <h2 id="confirm-title">Удалить запись?</h2>
+      <p class="confirm-text" id="confirm-text">Это действие нельзя отменить.</p>
       <div class="modal-actions">
         <button type="button" class="btn-secondary" id="confirm-cancel">Отмена</button>
         <button type="button" class="btn-primary" id="confirm-ok">Удалить</button>
@@ -983,7 +1031,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       periodMonth: String(new Date().getMonth() + 1),
       editingId: null,
       recordType: "Дебет",
-      pendingDeleteId: null
+      loanSide: "out",
+      pendingDelete: null
     };
 
     function contractorConfig(name) {
@@ -999,6 +1048,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         r.category = "Счета";
         r.subCategory = null;
       }
+      if (r.category === "Деньги в долг" && r.loanSide !== "in") r.loanSide = "out";
       return r;
     }
 
@@ -1007,7 +1057,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         contractors: {
           "Даня": { records: [] },
           "Максюшка": { records: [] }
-        }
+        },
+        deletedRecordIds: [],
+        deletedContractorNames: []
       };
     }
 
@@ -1016,9 +1068,15 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const raw = localStorage.getItem(STORAGE_KEY);
         const data = raw ? JSON.parse(raw) : defaultData();
         if (!data.contractors) data.contractors = {};
-        if (!data.contractors["Даня"]) data.contractors["Даня"] = { records: [] };
-        if (!data.contractors["Максюшка"]) data.contractors["Максюшка"] = { records: [] };
+        if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
+        const removed = new Set(data.deletedContractorNames);
+        if (!removed.has("Даня") && !data.contractors["Даня"]) data.contractors["Даня"] = { records: [] };
+        if (!removed.has("Максюшка") && !data.contractors["Максюшка"]) data.contractors["Максюшка"] = { records: [] };
         Object.keys(data.contractors).forEach((name) => {
+          if (removed.has(name)) {
+            delete data.contractors[name];
+            return;
+          }
           const list = data.contractors[name].records || [];
           data.contractors[name].records = list.map(migrateRecord);
         });
@@ -1031,12 +1089,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function saveData(data, options) {
       data.updatedAt = Date.now();
       if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
+      if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       if (!options || !options.skipRemote) schedulePush();
     }
 
     let db = loadData();
     if (!Array.isArray(db.deletedRecordIds)) db.deletedRecordIds = [];
+    if (!Array.isArray(db.deletedContractorNames)) db.deletedContractorNames = [];
     saveData(db, { skipRemote: true });
 
     const syncState = { status: "busy", message: "Подключение к облаку…" };
@@ -1091,11 +1151,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function mergeFinanceData(local, remote) {
       const out = defaultData();
       const deleted = new Set([...(local.deletedRecordIds || []), ...(remote.deletedRecordIds || [])]);
+      const deletedNames = new Set([...(local.deletedContractorNames || []), ...(remote.deletedContractorNames || [])]);
       const names = new Set([
         ...Object.keys(local.contractors || {}),
         ...Object.keys(remote.contractors || {})
       ]);
       names.forEach((name) => {
+        if (deletedNames.has(name)) return;
         const map = new Map();
         const remoteList = remote.contractors?.[name]?.records || [];
         const localList = local.contractors?.[name]?.records || [];
@@ -1105,9 +1167,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         });
         out.contractors[name] = { records: [...map.values()] };
       });
-      if (!out.contractors["Даня"]) out.contractors["Даня"] = { records: [] };
-      if (!out.contractors["Максюшка"]) out.contractors["Максюшка"] = { records: [] };
+      if (!deletedNames.has("Даня") && !out.contractors["Даня"]) out.contractors["Даня"] = { records: [] };
+      if (!deletedNames.has("Максюшка") && !out.contractors["Максюшка"]) out.contractors["Максюшка"] = { records: [] };
       out.deletedRecordIds = [...deleted];
+      out.deletedContractorNames = [...deletedNames];
       out.updatedAt = Date.now();
       return out;
     }
@@ -1203,8 +1266,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function calcProfit(amount, rate, issueDate, returnDate) {
       const sum = Number(amount) || 0;
       const interest = Number(rate) || 0;
-      if (!interest || !issueDate || !returnDate) return 0;
-      const days = daysBetween(issueDate, returnDate);
+      if (!interest || !issueDate) return 0;
+      const end = returnDate || todayIso();
+      const days = daysBetween(issueDate, end);
       if (days <= 0) return 0;
       return (sum * interest / 100) * (days / 365);
     }
@@ -1218,10 +1282,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function contractorNames() {
-      const extras = Object.keys(db.contractors)
+      const names = Object.keys(db.contractors || {});
+      const special = ["Даня", "Максюшка"].filter((name) => names.includes(name));
+      const extras = names
         .filter((name) => name !== "Даня" && name !== "Максюшка")
         .sort((a, b) => a.localeCompare(b, "ru"));
-      return ["Даня", "Максюшка", ...extras];
+      return [...special, ...extras];
     }
 
     function currentRecords() {
@@ -1279,6 +1345,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       let debit = 0;
       let credit = 0;
       records.forEach((r) => {
+        if (isBorrowed(r)) return;
         if (r.type === "Кредит") credit += Number(r.amount) || 0;
         else debit += Number(r.amount) || 0;
       });
@@ -1295,7 +1362,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return {
         rent: add((r) => (r.category === "Аренда помещения" && r.subCategory === "Аренда") || r.category === "Аренда ДТФ"),
         utilities: add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка"),
-        cash: add((r) => r.category === "Деньги в долг"),
+        cash: add((r) => r.category === "Деньги в долг" && r.loanSide !== "in"),
         invoices: add((r) => r.category === "Счета")
       };
     }
@@ -1309,24 +1376,55 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       ];
     }
 
+    function isBorrowed(r) {
+      return r && r.category === "Деньги в долг" && r.loanSide === "in";
+    }
+
+    function recordTypeLabel(r) {
+      if (r.category !== "Деньги в долг") return r.type;
+      if (r.loanSide === "in") return r.type === "Кредит" ? "Вернули" : "Взяли";
+      return r.type === "Кредит" ? "Возврат" : "Выдали";
+    }
+
     function interestProfit(name) {
       return (db.contractors[name]?.records || [])
-        .filter((r) => r.category === "Деньги в долг" && r.type !== "Кредит")
+        .filter((r) => r.category === "Деньги в долг" && r.type !== "Кредит" && r.loanSide !== "in")
         .reduce((sum, r) => sum + (Number(r.profit) || 0), 0);
+    }
+
+    function interestLoss(name) {
+      return (db.contractors[name]?.records || [])
+        .filter((r) => isBorrowed(r) && r.type !== "Кредит")
+        .reduce((sum, r) => sum + (Number(r.profit) || 0), 0);
+    }
+
+    function ourDebt(name) {
+      const records = (db.contractors[name]?.records || []).filter(isBorrowed);
+      let taken = 0;
+      let repaid = 0;
+      records.forEach((r) => {
+        if (r.type === "Кредит") repaid += Number(r.amount) || 0;
+        else taken += Number(r.amount) || 0;
+      });
+      return taken - repaid;
     }
 
     function globalDebtAndProfit() {
       let debt = 0;
       let profit = 0;
+      let ours = 0;
+      let loss = 0;
       contractorNames().forEach((name) => {
         debt += totals(name).saldo;
         profit += interestProfit(name);
+        ours += ourDebt(name);
+        loss += interestLoss(name);
       });
-      return { debt, profit };
+      return { debt, profit, ours, loss };
     }
 
     function overdueLoanIds(name) {
-      const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг");
+      const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг" && r.loanSide !== "in");
       const loans = records
         .filter((r) => r.type !== "Кредит")
         .slice()
@@ -1414,6 +1512,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const cfg = contractorConfig(name);
         const t = totals(name);
         const profit = interestProfit(name);
+        const loss = interestLoss(name);
+        const ours = ourDebt(name);
         const overdue = hasOverdueDebt(name);
         const meta = cfg.hasRental ? "Аренда и займы" : "Только займы";
         const split = cfg.hasRental ? debitBreakdown(name) : null;
@@ -1426,6 +1526,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             </div>
         ` : "";
         return `
+          <div class="contractor-card-wrap">
           <button class="contractor-card ${overdue ? "overdue" : ""}" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
@@ -1439,10 +1540,20 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 <div class="stat-label">Прибыль</div>
                 <div class="stat-value profit">${formatMoney(profit)}</div>
               </div>
+              <div class="stat">
+                <div class="stat-label">Наш долг</div>
+                <div class="stat-value ${ours ? "loss" : ""}">${formatMoney(ours)}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Потери</div>
+                <div class="stat-value ${loss ? "loss" : ""}">${formatMoney(loss)}</div>
+              </div>
             </div>
             ${splitHtml}
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
           </button>
+          <button type="button" class="card-delete" data-delete-contractor="${escapeHtml(name)}" title="Удалить карточку" aria-label="Удалить карточку">✕</button>
+          </div>
         `;
       }).join("");
 
@@ -1465,6 +1576,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="label">Прибыль по процентам</div>
             <div class="value profit">${formatMoney(totalsAll.profit)}</div>
           </div>
+          <div class="summary-card saldo">
+            <div class="label">Сумма наших долгов</div>
+            <div class="value ${totalsAll.ours ? "negative" : "zero"}">${formatMoney(totalsAll.ours)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Потери на процентах</div>
+            <div class="value loss">${formatMoney(totalsAll.loss)}</div>
+          </div>
         </div>
         <div class="contractors">
           ${cards}
@@ -1481,6 +1600,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const cfg = contractorConfig(name);
       const t = totals(name, true);
       const allTimeProfit = interestProfit(name);
+      const allTimeLoss = interestLoss(name);
+      const ours = ourDebt(name);
       const split = cfg.hasRental ? debitBreakdown(name, true) : null;
       const rows = visibleRecords();
 
@@ -1513,12 +1634,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${escapeHtml(r.subCategory || "—")}
             ${r.month ? `<span class="cell-extra">${escapeHtml(r.month)}</span>` : ""}
             ${r.invoiceNumber ? `<span class="cell-extra">№ ${escapeHtml(r.invoiceNumber)}</span>` : ""}
-            ${r.issueDate ? `<span class="cell-extra">выдача ${formatDate(r.issueDate)}</span>` : ""}
-            ${r.returnDate ? `<span class="cell-extra ${overdueIds.has(r.id) ? "overdue-mark" : ""}">вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span>` : ""}
+            ${r.issueDate ? `<span class="cell-extra">${isBorrowed(r) ? "получили" : "выдача"} ${formatDate(r.issueDate)}</span>` : ""}
+            ${r.returnDate ? `<span class="cell-extra ${overdueIds.has(r.id) ? "overdue-mark" : ""}">вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span>` : (isBorrowed(r) && r.type !== "Кредит" ? `<span class="cell-extra">без срока</span>` : "")}
           </td>
           <td>${formatMoney(r.amount)}</td>
-          <td class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</td>
-          <td class="muted">${r.category === "Деньги в долг" ? formatMoney(r.profit) : "—"}</td>
+          <td class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</td>
+          <td class="muted">${r.category === "Деньги в долг" ? (isBorrowed(r) ? "потери " : "") + formatMoney(r.profit) : "—"}</td>
           <td>${escapeHtml(r.paymentMethod || "—")}</td>
           <td class="wrap muted">${escapeHtml(r.comment || "—")}</td>
           <td>
@@ -1532,10 +1653,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
       const cards = rows.map((r) => `
         <div class="record-card ${overdueIds.has(r.id) ? "overdue-row" : ""}">
-          <div class="row"><strong>${formatDate(r.date)}</strong><span class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(r.type)}</span></div>
+          <div class="row"><strong>${formatDate(r.date)}</strong><span class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
-          <div class="row muted"><span>${escapeHtml(r.paymentMethod || "—")}</span><span>${r.category === "Деньги в долг" ? "Прибыль: " + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span></div>
-          ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : ""}
+          <div class="row muted"><span>${escapeHtml(r.paymentMethod || "—")}</span><span>${r.category === "Деньги в долг" ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span></div>
+          ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : (isBorrowed(r) && r.type !== "Кредит" ? `<div class="row muted"><span>без срока возврата</span></div>` : "")}
           ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
           <div class="row muted">
             <span></span>
@@ -1594,6 +1715,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         <div class="topbar">
           <button class="back-btn" id="back-home">← Назад</button>
           <h1>Финансовый учёт</h1>
+          <button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
         ${hasOverdueDebt(name) ? `<p class="overdue-mark" style="text-align:center;margin:-12px 0 18px;">Просрочен возврат долга</p>` : ""}
@@ -1630,6 +1752,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <div class="summary-card">
             <div class="label">Прибыль за всё время</div>
             <div class="value profit">${formatMoney(allTimeProfit)}</div>
+          </div>
+          <div class="summary-card saldo">
+            <div class="label">Наш долг</div>
+            <div class="value ${ours ? "negative" : "zero"}">${formatMoney(ours)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Потери на процентах</div>
+            <div class="value loss">${formatMoney(allTimeLoss)}</div>
           </div>
         </div>
         ${split ? `
@@ -1708,6 +1838,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.querySelectorAll("[data-delete]").forEach((btn) => {
         btn.addEventListener("click", () => askDelete(btn.getAttribute("data-delete")));
       });
+      document.querySelectorAll("[data-delete-contractor]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          askDeleteContractor(btn.getAttribute("data-delete-contractor"));
+        });
+      });
     }
 
     function openContractor(name) {
@@ -1736,23 +1873,33 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const isDebt = category === "Деньги в долг";
       const isInvoice = category === "Счета";
       const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
+      const borrowed = isDebt && state.loanSide === "in";
 
       const isDebtIssue = isDebt && state.recordType !== "Кредит";
       const isDebtRepay = isDebt && state.recordType === "Кредит";
 
       document.getElementById("category-field").classList.add("hidden");
       document.getElementById("subcategory-field").classList.add("hidden");
+      document.getElementById("loanside-field").classList.toggle("hidden", !isDebt);
       document.getElementById("date-field").classList.toggle("hidden", isDebtIssue);
-      document.getElementById("date-label").textContent = isDebtRepay ? "Дата погашения" : (isInvoice ? "Дата счета" : "Дата");
+      document.getElementById("date-label").textContent = isDebtRepay
+        ? (borrowed ? "Дата возврата" : "Дата погашения")
+        : (isInvoice ? "Дата счета" : "Дата");
       document.getElementById("month-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("year-field").classList.toggle("hidden", !isPeriod);
       document.getElementById("invoice-field").classList.toggle("hidden", !isInvoice);
       document.getElementById("comment-field").classList.remove("hidden");
       document.getElementById("payment-field").classList.toggle("hidden", state.recordType !== "Кредит");
       document.getElementById("issue-field").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("issue-label").textContent = borrowed ? "Дата получения" : "Дата выдачи";
       document.getElementById("return-field").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("return-label").textContent = borrowed ? "Срок возврата (необязательно)" : "Срок возврата";
       document.getElementById("rate-field").classList.toggle("hidden", !isDebtIssue);
       document.getElementById("profit-preview").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("side-out").classList.toggle("active", state.loanSide !== "in");
+      document.getElementById("side-in").classList.toggle("active", state.loanSide === "in");
+      document.getElementById("type-debit").textContent = isDebt ? "Начисление" : "Дебет";
+      document.getElementById("type-credit").textContent = isDebt ? "Погашение" : "Кредит";
       updateProfitPreview();
     }
 
@@ -1762,13 +1909,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const issue = document.getElementById("field-issue").value;
       const ret = document.getElementById("field-return").value;
       const profit = calcProfit(amount, rate, issue, ret);
-      document.getElementById("profit-preview").textContent = "Прибыль: " + formatMoney(profit);
+      const preview = document.getElementById("profit-preview");
+      const borrowed = state.loanSide === "in";
+      preview.classList.toggle("loss", borrowed);
+      preview.textContent = (borrowed ? "Потери: " : "Прибыль: ") + formatMoney(profit);
     }
 
     function setRecordType(type) {
       state.recordType = type;
       document.getElementById("type-debit").classList.toggle("active", type === "Дебет");
       document.getElementById("type-credit").classList.toggle("active", type === "Кредит");
+      syncRecordFields();
+    }
+
+    function setLoanSide(side) {
+      state.loanSide = side === "in" ? "in" : "out";
       syncRecordFields();
     }
 
@@ -1793,6 +1948,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("field-date").value = todayIso();
       document.getElementById("field-issue").value = todayIso();
       document.getElementById("field-rate").value = "0";
+      state.loanSide = "out";
       setRecordType("Дебет");
 
       if (id) {
@@ -1804,6 +1960,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           }
           document.getElementById("field-amount").value = rec.amount;
           document.getElementById("field-date").value = rec.date || "";
+          state.loanSide = rec.loanSide === "in" ? "in" : "out";
           setRecordType(rec.type || "Дебет");
           if (rec.month) {
             const [monthName, year] = rec.month.split(" ");
@@ -1840,6 +1997,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const isInvoice = category === "Счета";
       const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
       const isCredit = state.recordType === "Кредит";
+      const borrowed = isDebt && state.loanSide === "in";
       const issueDate = document.getElementById("field-issue").value || null;
       const returnDate = document.getElementById("field-return").value || null;
       const date = isDebt && !isCredit ? issueDate : document.getElementById("field-date").value;
@@ -1849,16 +2007,18 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         return;
       }
       if (!date) {
-        error.textContent = isDebt && !isCredit ? "Укажите дату выдачи" : (isDebt ? "Укажите дату погашения" : "Укажите дату");
+        error.textContent = isDebt && !isCredit
+          ? (borrowed ? "Укажите дату получения" : "Укажите дату выдачи")
+          : (isDebt ? (borrowed ? "Укажите дату возврата" : "Укажите дату погашения") : "Укажите дату");
         error.classList.add("show");
         return;
       }
-      if (isDebt && !isCredit && !returnDate) {
+      if (isDebt && !isCredit && !borrowed && !returnDate) {
         error.textContent = "Укажите срок возврата";
         error.classList.add("show");
         return;
       }
-      if (isDebt && !isCredit && returnDate < date) {
+      if (isDebt && !isCredit && returnDate && returnDate < date) {
         error.textContent = "Срок возврата не может быть раньше даты выдачи";
         error.classList.add("show");
         return;
@@ -1890,6 +2050,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         issueDate: isDebt && !isCredit ? issueDate : null,
         returnDate: isDebt && !isCredit ? returnDate : null,
         interestRate: isDebt && !isCredit ? interestRate : null,
+        loanSide: isDebt ? (borrowed ? "in" : "out") : null,
         profit: isDebt && !isCredit ? calcProfit(amount, interestRate, issueDate, returnDate) : 0
       };
 
@@ -1904,18 +2065,50 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function askDelete(id) {
-      state.pendingDeleteId = id;
+      state.pendingDelete = { kind: "record", id };
+      document.getElementById("confirm-title").textContent = "Удалить запись?";
+      document.getElementById("confirm-text").textContent = "Это действие нельзя отменить.";
+      document.getElementById("confirm-overlay").classList.add("open");
+    }
+
+    function askDeleteContractor(name) {
+      state.pendingDelete = { kind: "contractor", name };
+      document.getElementById("confirm-title").textContent = "Удалить карточку?";
+      document.getElementById("confirm-text").textContent = "Будут удалены контрагент «" + name + "» и все его записи.";
       document.getElementById("confirm-overlay").classList.add("open");
     }
 
     function confirmDelete() {
-      const id = state.pendingDeleteId;
+      const pending = state.pendingDelete;
+      if (!pending) return;
+      if (pending.kind === "contractor") {
+        const name = pending.name;
+        const records = db.contractors[name]?.records || [];
+        db.deletedRecordIds = db.deletedRecordIds || [];
+        records.forEach((r) => {
+          if (r.id && !db.deletedRecordIds.includes(r.id)) db.deletedRecordIds.push(r.id);
+        });
+        db.deletedContractorNames = db.deletedContractorNames || [];
+        if (!db.deletedContractorNames.includes(name)) db.deletedContractorNames.push(name);
+        delete db.contractors[name];
+        saveData(db);
+        state.pendingDelete = null;
+        document.getElementById("confirm-overlay").classList.remove("open");
+        if (state.contractor === name) {
+          state.view = "home";
+          state.contractor = null;
+        }
+        render();
+        showToast("Карточка удалена");
+        return;
+      }
+      const id = pending.id;
       if (!id) return;
       db.deletedRecordIds = db.deletedRecordIds || [];
       if (!db.deletedRecordIds.includes(id)) db.deletedRecordIds.push(id);
       db.contractors[state.contractor].records = currentRecords().filter((r) => r.id !== id);
       saveData(db);
-      state.pendingDeleteId = null;
+      state.pendingDelete = null;
       document.getElementById("confirm-overlay").classList.remove("open");
       render();
       showToast("Запись удалена");
@@ -1975,6 +2168,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
+      db.deletedContractorNames = (db.deletedContractorNames || []).filter((n) => n !== name);
       db.contractors[name] = { records: [] };
       saveData(db);
       closeContractorModal();
@@ -1987,7 +2181,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       closeContractorModal();
       closeSyncModal();
       document.getElementById("confirm-overlay").classList.remove("open");
-      state.pendingDeleteId = null;
+      state.pendingDelete = null;
     }
 
     document.getElementById("record-form").addEventListener("submit", submitRecord);
@@ -2004,6 +2198,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     });
     document.getElementById("type-debit").addEventListener("click", () => setRecordType("Дебет"));
     document.getElementById("type-credit").addEventListener("click", () => setRecordType("Кредит"));
+    document.getElementById("side-out").addEventListener("click", () => setLoanSide("out"));
+    document.getElementById("side-in").addEventListener("click", () => setLoanSide("in"));
     document.getElementById("contractor-form").addEventListener("submit", submitContractor);
     document.getElementById("contractor-cancel").addEventListener("click", closeContractorModal);
     document.getElementById("sync-form").addEventListener("submit", submitSync);
@@ -2013,7 +2209,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     });
     document.getElementById("confirm-cancel").addEventListener("click", () => {
       document.getElementById("confirm-overlay").classList.remove("open");
-      state.pendingDeleteId = null;
+      state.pendingDelete = null;
     });
     document.getElementById("confirm-ok").addEventListener("click", confirmDelete);
     document.getElementById("record-overlay").addEventListener("click", (e) => {
@@ -2025,7 +2221,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("confirm-overlay").addEventListener("click", (e) => {
       if (e.target.id === "confirm-overlay") {
         document.getElementById("confirm-overlay").classList.remove("open");
-        state.pendingDeleteId = null;
+        state.pendingDelete = null;
       }
     });
     document.addEventListener("keydown", (e) => {
