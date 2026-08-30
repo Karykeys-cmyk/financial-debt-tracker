@@ -65,9 +65,9 @@
     .app {
       position: relative;
       z-index: 1;
-      max-width: 1100px;
+      max-width: 1560px;
       margin: 0 auto;
-      padding: 28px 20px 48px;
+      padding: 28px 28px 48px;
       min-height: 100vh;
     }
 
@@ -163,9 +163,13 @@
 
     .home-totals {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 14px;
       margin: 0 0 24px;
+    }
+
+    .home-totals .summary-card .value {
+      white-space: nowrap;
     }
 
     .home-totals .summary-card .value.profit {
@@ -209,7 +213,7 @@
 
     .contractors {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 16px;
     }
 
@@ -277,6 +281,7 @@
       font-size: 0.92rem;
       font-weight: 700;
       margin-top: 3px;
+      white-space: nowrap;
     }
 
     .card-split {
@@ -309,14 +314,22 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      gap: 8px;
+      gap: 12px;
       font-size: 0.75rem;
       color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .card-split .split-row span {
+      white-space: normal;
+      min-width: 0;
     }
 
     .card-split .split-row b {
       color: var(--text);
       font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .debit-breakdown {
@@ -345,6 +358,7 @@
       font-size: 1rem;
       font-weight: 650;
       color: var(--debit);
+      white-space: nowrap;
     }
 
     .contractor-card.overdue {
@@ -418,6 +432,7 @@
       font-size: clamp(1.05rem, 2.4vw, 1.65rem);
       font-weight: 700;
       color: var(--debit);
+      white-space: nowrap;
     }
 
     .summary-card .value.profit {
@@ -537,10 +552,44 @@
     .table-toolbar {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
       margin-bottom: 12px;
+    }
+
+    .table-toolbar .toolbar-left,
+    .table-toolbar .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .table-toolbar input[type="search"] {
+      min-width: 220px;
+      flex: 1;
+      max-width: 360px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--card);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      outline: none;
+    }
+
+    .collapse-btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-weight: 600;
+    }
+
+    .collapse-btn:hover {
+      background: var(--card-hover);
     }
 
     .table-toolbar label {
@@ -618,6 +667,7 @@
     .add-record {
       width: 100%;
       padding: 16px;
+      margin: 4px 0 20px;
       border-radius: 16px;
       background: var(--accent);
       color: #fff;
@@ -844,6 +894,10 @@
       white-space: normal;
     }
 
+    @media (max-width: 1100px) {
+      .home-totals { grid-template-columns: 1fr 1fr; }
+    }
+
     @media (max-width: 900px) {
       .summary { grid-template-columns: repeat(2, 1fr); }
       .debit-breakdown { grid-template-columns: repeat(2, 1fr); }
@@ -1026,6 +1080,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       tab: "rental",
       subTab: "Коммуналка",
       paymentFilter: "Все",
+      recordSearch: "",
+      recordsCollapsed: false,
       periodMode: "all",
       periodYear: String(new Date().getFullYear()),
       periodMonth: String(new Date().getMonth() + 1),
@@ -1359,15 +1415,26 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         if (r.type === "Кредит") return sum;
         return pred(r) ? sum + (Number(r.amount) || 0) : sum;
       }, 0);
-      return {
-        rent: add((r) => (r.category === "Аренда помещения" && r.subCategory === "Аренда") || r.category === "Аренда ДТФ"),
-        utilities: add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка"),
-        cash: add((r) => r.category === "Деньги в долг" && r.loanSide !== "in"),
-        invoices: add((r) => r.category === "Счета")
-      };
+      const rentOnly = add((r) => r.category === "Аренда помещения" && r.subCategory === "Аренда");
+      const utilities = add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка");
+      const dtf = add((r) => r.category === "Аренда ДТФ");
+      const cash = add((r) => r.category === "Деньги в долг" && r.loanSide !== "in");
+      const invoices = add((r) => r.category === "Счета");
+      if (name === "Даня") {
+        return { rent: rentOnly + utilities, dtf, cash, invoices };
+      }
+      return { rent: rentOnly + dtf, utilities, cash, invoices };
     }
 
-    function debitBreakdownRows(split) {
+    function debitBreakdownRows(name, split) {
+      if (name === "Даня") {
+        return [
+          ["Всего за аренду", split.rent],
+          ["Всего Аренда ДТФ", split.dtf],
+          ["Всего отдано", split.cash],
+          ["По счетам", split.invoices]
+        ];
+      }
       return [
         ["Всего за аренду", split.rent],
         ["Коммуналка", split.utilities],
@@ -1483,6 +1550,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             return false;
           }
           if (!inSelectedPeriod(r)) return false;
+          const q = String(state.recordSearch || "").trim().toLowerCase();
+          if (q) {
+            const hay = [
+              r.date, r.issueDate, r.returnDate,
+              formatDate(r.date), formatDate(r.issueDate), formatDate(r.returnDate),
+              r.category, r.subCategory, r.type, recordTypeLabel(r),
+              r.comment, r.paymentMethod, r.invoiceNumber, r.month,
+              r.amount, formatMoney(r.amount), formatMoney(r.profit),
+              isBorrowed(r) ? "взяли наш долг без срока" : "",
+              r.loanSide === "out" ? "выдали" : ""
+            ].join(" ").toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
           return true;
         })
         .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.id || "").localeCompare(a.id || ""));
@@ -1520,7 +1600,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const splitHtml = split ? `
             <div class="card-split">
               <div class="split-head"><span>Дебет</span><strong>${formatMoney(t.debit)}</strong></div>
-              ${debitBreakdownRows(split).map(([label, amount]) => (
+              ${debitBreakdownRows(name, split).map(([label, amount]) => (
                 `<div class="split-row"><span>${label}</span><b>${formatMoney(amount)}</b></div>`
               )).join("")}
             </div>
@@ -1674,9 +1754,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
       let emptyText = "Записей пока нет";
       if (tabRecords.length && !rows.length) {
-        emptyText = state.paymentFilter !== "Все"
-          ? "Нет записей с таким способом оплаты"
-          : "Нет записей за выбранный период";
+        emptyText = state.recordSearch.trim()
+          ? "Нет записей по запросу"
+          : (state.paymentFilter !== "Все"
+            ? "Нет записей с таким способом оплаты"
+            : "Нет записей за выбранный период");
       }
 
       const body = rows.length ? `
@@ -1703,11 +1785,17 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
       const paymentFilter = `
         <div class="table-toolbar">
-          <label for="filter-payment">Способ оплаты</label>
-          <select id="filter-payment">
-            <option value="Все" ${state.paymentFilter === "Все" ? "selected" : ""}>Все</option>
-            ${PAYMENT_METHODS.map((m) => `<option value="${escapeHtml(m)}" ${state.paymentFilter === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}
-          </select>
+          <div class="toolbar-left">
+            <input type="search" id="filter-search" placeholder="Поиск по записям" value="${escapeHtml(state.recordSearch)}" />
+            <button type="button" class="collapse-btn" id="toggle-records">${state.recordsCollapsed ? "Показать записи" : "Свернуть записи"}</button>
+          </div>
+          <div class="toolbar-right">
+            <label for="filter-payment">Способ оплаты</label>
+            <select id="filter-payment">
+              <option value="Все" ${state.paymentFilter === "Все" ? "selected" : ""}>Все</option>
+              ${PAYMENT_METHODS.map((m) => `<option value="${escapeHtml(m)}" ${state.paymentFilter === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}
+            </select>
+          </div>
         </div>
       `;
 
@@ -1764,7 +1852,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </div>
         ${split ? `
         <div class="debit-breakdown">
-          ${debitBreakdownRows(split).map(([label, amount]) => `
+          ${debitBreakdownRows(name, split).map(([label, amount]) => `
             <div class="item">
               <div class="label">${label}</div>
               <div class="value">${formatMoney(amount)}</div>
@@ -1772,11 +1860,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           `).join("")}
         </div>
         ` : ""}
+        <button class="add-record" id="add-record">➕ Добавить запись</button>
         ${tabs}
         ${subtabs}
         ${paymentFilter}
-        <div class="table-panel">${body}</div>
-        <button class="add-record" id="add-record">➕ Добавить запись</button>
+        <div class="table-panel ${state.recordsCollapsed ? "hidden" : ""}">${body}</div>
+        ${state.recordsCollapsed ? `<div class="empty">Записи свёрнуты</div>` : ""}
       `;
     }
 
@@ -1790,6 +1879,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         render();
       });
       document.getElementById("add-record")?.addEventListener("click", () => openRecordModal());
+      document.getElementById("toggle-records")?.addEventListener("click", () => {
+        state.recordsCollapsed = !state.recordsCollapsed;
+        render();
+      });
+      document.getElementById("filter-search")?.addEventListener("input", (e) => {
+        const pos = e.target.selectionStart;
+        state.recordSearch = e.target.value;
+        render();
+        const input = document.getElementById("filter-search");
+        if (input) {
+          input.focus();
+          const next = Math.min(pos ?? input.value.length, input.value.length);
+          input.setSelectionRange(next, next);
+        }
+      });
       document.getElementById("filter-payment")?.addEventListener("change", (e) => {
         state.paymentFilter = e.target.value;
         render();
@@ -1854,6 +1958,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       state.tab = cfg.hasRental ? "rental" : "debt";
       state.subTab = "Коммуналка";
       state.paymentFilter = "Все";
+      state.recordSearch = "";
+      state.recordsCollapsed = false;
       state.periodMode = "all";
       state.periodYear = String(new Date().getFullYear());
       state.periodMonth = String(new Date().getMonth() + 1);
