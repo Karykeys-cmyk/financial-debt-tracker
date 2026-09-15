@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store" />
   <title>Финансовый учёт</title>
   <style>
     :root {
@@ -308,6 +309,8 @@
       color: var(--debit);
       font-size: 0.92rem;
       font-weight: 700;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .card-split .split-row {
@@ -1543,18 +1546,20 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function visibleRecords() {
+      const q = String(state.recordSearch || "").trim().toLowerCase();
       return currentRecords()
         .filter((r) => {
-          if (state.tab === "rental") {
-            if (!(r.category === "Аренда помещения" && r.subCategory === state.subTab)) return false;
-          } else if (r.category !== currentCategory()) {
-            return false;
+          if (!q) {
+            if (state.tab === "rental") {
+              if (!(r.category === "Аренда помещения" && r.subCategory === state.subTab)) return false;
+            } else if (r.category !== currentCategory()) {
+              return false;
+            }
           }
           if (state.paymentFilter !== "Все" && (r.paymentMethod || "") !== state.paymentFilter) {
             return false;
           }
           if (!inSelectedPeriod(r)) return false;
-          const q = String(state.recordSearch || "").trim().toLowerCase();
           if (q) {
             const hay = [
               r.date, r.issueDate, r.returnDate,
@@ -1757,12 +1762,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         return r.category === currentCategory();
       });
       let emptyText = "Записей пока нет";
-      if (tabRecords.length && !rows.length) {
-        emptyText = state.recordSearch.trim()
-          ? "Нет записей по запросу"
-          : (state.paymentFilter !== "Все"
-            ? "Нет записей с таким способом оплаты"
-            : "Нет записей за выбранный период");
+      if (!rows.length) {
+        if (String(state.recordSearch || "").trim()) emptyText = "Нет записей по запросу";
+        else if (tabRecords.length && state.paymentFilter !== "Все") emptyText = "Нет записей с таким способом оплаты";
+        else if (tabRecords.length) emptyText = "Нет записей за выбранный период";
       }
 
       const body = rows.length ? `
@@ -1790,7 +1793,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const paymentFilter = `
         <div class="table-toolbar">
           <div class="toolbar-left">
-            <input type="search" id="filter-search" placeholder="Поиск по записям" value="${escapeHtml(state.recordSearch)}" />
+            <input type="search" id="filter-search" placeholder="${escapeHtml(state.recordSearch.trim() ? "Поиск по всем записям" : "Поиск по записям")}" value="${escapeHtml(state.recordSearch)}" />
             <button type="button" class="collapse-btn" id="toggle-records">${state.recordsCollapsed ? "Показать записи" : "Свернуть записи"}</button>
           </div>
           <div class="toolbar-right">
@@ -1892,6 +1895,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("filter-search")?.addEventListener("input", (e) => {
         const pos = e.target.selectionStart;
         state.recordSearch = e.target.value;
+        if (String(state.recordSearch).trim()) state.recordsCollapsed = false;
         render();
         const input = document.getElementById("filter-search");
         if (input) {
