@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="55" />
+  <meta name="app-build" content="56" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=55" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=55" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=55" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=55" />
+  <link rel="manifest" href="manifest.webmanifest?v=56" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=56" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=56" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=56" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1272,7 +1272,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=55" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=56" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1541,7 +1541,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "55";
+    const APP_BUILD = "56";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -1601,6 +1601,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       pendingDelete: null,
       homeYear: String(new Date().getFullYear()),
       homeMonth: String(new Date().getMonth() + 1),
+      homePeriodMode: "month",
       cabinetRole: "user"
     };
 
@@ -2483,10 +2484,22 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return { start, end };
     }
 
-    function loanAccrualEnd(r) {
+    function isFutureMonth(year, month) {
+      const now = new Date();
+      const cy = now.getFullYear();
+      const cm = now.getMonth() + 1;
+      return Number(year) > cy || (Number(year) === cy && Number(month) > cm);
+    }
+
+    function loanAccrualEnd(r, year, month) {
       if (isFullyPaid(r)) {
         const pays = (r.payments || []).map((p) => p.date).filter(Boolean).sort();
         return pays[pays.length - 1] || r.returnDate || r.issueDate || r.date || todayIso();
+      }
+      if (year && month && isFutureMonth(year, month)) {
+        const { end } = monthRange(year, month);
+        if (r.returnDate && r.returnDate < end) return r.returnDate;
+        return end;
       }
       return todayIso();
     }
@@ -2505,7 +2518,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         }
         return 0;
       }
-      const loanEnd = loanAccrualEnd(r);
+      const loanEnd = loanAccrualEnd(r, year, month);
       const from = issue > start ? issue : start;
       const to = loanEnd < end ? loanEnd : end;
       if (!from || !to || from >= to) return 0;
@@ -2522,6 +2535,43 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return debtRecords(name)
         .filter(isBorrowed)
         .reduce((sum, r) => sum + interestInMonth(r, year, month), 0);
+    }
+
+    function homeAnalytics() {
+      const all = state.homePeriodMode === "all";
+      const future = !all && isFutureMonth(state.homeYear, state.homeMonth);
+      const monthName = MONTHS[Number(state.homeMonth) - 1] || "";
+      const totalsAll = globalDebtAndProfit();
+      const monthStats = all ? null : globalMonthStats(state.homeYear, state.homeMonth);
+      const profit = all ? totalsAll.profit : monthStats.profit;
+      const loss = all ? totalsAll.loss : monthStats.loss;
+      return {
+        all,
+        future,
+        monthName,
+        totalsAll,
+        profit,
+        loss,
+        title: all ? "Аналитика" : (future ? "Планируемый доход" : "Прибыль за месяц"),
+        profitLabel: all ? "Прибыль за всё время" : (future ? "Планируемый доход" : ("Прибыль за " + monthName)),
+        lossLabel: all ? "Потери на процентах" : (future ? "Планируемые потери" : ("Потери за " + monthName)),
+        cardProfitLabel: all ? "Прибыль" : (future ? "Планируемый доход" : "Прибыль за месяц"),
+        caption: all
+          ? "Проценты по займам за весь срок"
+          : (future
+            ? (monthName + " " + state.homeYear + " · планируемый доход по уже выданным займам")
+            : (monthName + " " + state.homeYear + " · проценты по займам за этот месяц"))
+      };
+    }
+
+    function contractorPeriodProfit(name) {
+      if (state.homePeriodMode === "all") return interestProfit(name);
+      return interestProfitMonth(name, state.homeYear, state.homeMonth);
+    }
+
+    function contractorPeriodLoss(name) {
+      if (state.homePeriodMode === "all") return interestLoss(name);
+      return interestLossMonth(name, state.homeYear, state.homeMonth);
     }
 
     function globalMonthStats(year, month) {
@@ -2830,14 +2880,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function renderHome() {
-      const totalsAll = globalDebtAndProfit();
-      const monthStats = globalMonthStats(state.homeYear, state.homeMonth);
-      const monthName = MONTHS[Number(state.homeMonth) - 1] || "";
+      const analytics = homeAnalytics();
+      const totalsAll = analytics.totalsAll;
       const cards = contractorNames().map((name) => {
         const cfg = contractorConfig(name);
         const t = totals(name);
-        const profit = interestProfitMonth(name, state.homeYear, state.homeMonth);
-        const loss = interestLossMonth(name, state.homeYear, state.homeMonth);
+        const profit = contractorPeriodProfit(name);
+        const loss = contractorPeriodLoss(name);
         const ours = ourDebt(name);
         const sortCount = unsortedPayments(name).length;
         const overdue = hasOverdueDebt(name);
@@ -2865,7 +2914,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
               </div>
               <div class="stat">
-                <div class="stat-label">Прибыль за месяц</div>
+                <div class="stat-label">${escapeHtml(analytics.cardProfitLabel)}</div>
                 <div class="stat-value profit">${formatMoney(profit)}</div>
               </div>
               <div class="stat">
@@ -2894,15 +2943,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ${renderSessionBar()}
         <div class="analytics">
           <div class="analytics-head">
-            <span class="title">Прибыль за месяц</span>
-            <select id="home-period-month">
+            <span class="title">${escapeHtml(analytics.title)}</span>
+            <select id="home-period-mode">
+              <option value="month" ${state.homePeriodMode === "month" ? "selected" : ""}>Месяц</option>
+              <option value="all" ${state.homePeriodMode === "all" ? "selected" : ""}>За всё время</option>
+            </select>
+            <select id="home-period-month" class="${analytics.all ? "hidden" : ""}">
               ${MONTHS.map((label, i) => `<option value="${i + 1}" ${String(i + 1) === String(state.homeMonth) ? "selected" : ""}>${label}</option>`).join("")}
             </select>
-            <select id="home-period-year">
+            <select id="home-period-year" class="${analytics.all ? "hidden" : ""}">
               ${allPeriodYears().map((y) => `<option value="${y}" ${String(y) === String(state.homeYear) ? "selected" : ""}>${y}</option>`).join("")}
             </select>
           </div>
-          <div class="analytics-caption">${escapeHtml(monthName + " " + state.homeYear)} · проценты по займам за этот месяц</div>
+          <div class="analytics-caption">${escapeHtml(analytics.caption)}</div>
         </div>
         <div class="home-totals">
           <div class="summary-card saldo">
@@ -2910,16 +2963,16 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="value ${saldoTone(totalsAll.debt)}">${formatMoney(totalsAll.debt)}</div>
           </div>
           <div class="summary-card">
-            <div class="label">Прибыль за ${escapeHtml(monthName)}</div>
-            <div class="value profit">${formatMoney(monthStats.profit)}</div>
+            <div class="label">${escapeHtml(analytics.profitLabel)}</div>
+            <div class="value profit">${formatMoney(analytics.profit)}</div>
           </div>
           <div class="summary-card saldo">
             <div class="label">Сумма наших долгов</div>
             <div class="value ${totalsAll.ours ? "negative" : "zero"}">${formatMoney(totalsAll.ours)}</div>
           </div>
           <div class="summary-card">
-            <div class="label">Потери за ${escapeHtml(monthName)}</div>
-            <div class="value loss">${formatMoney(monthStats.loss)}</div>
+            <div class="label">${escapeHtml(analytics.lossLabel)}</div>
+            <div class="value loss">${formatMoney(analytics.loss)}</div>
           </div>
         </div>
         <div class="contractors">
@@ -3221,6 +3274,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
       document.getElementById("logout-btn")?.addEventListener("click", logout);
       document.getElementById("open-cabinets")?.addEventListener("click", openCabinetModal);
+      document.getElementById("home-period-mode")?.addEventListener("change", (e) => {
+        state.homePeriodMode = e.target.value;
+        render();
+      });
       document.getElementById("home-period-month")?.addEventListener("change", (e) => {
         state.homeMonth = e.target.value;
         render();
