@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="40" />
+  <meta name="app-build" content="41" />
   <title>Финансовый учёт</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=40" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=40" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=40" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=40" />
+  <link rel="manifest" href="manifest.webmanifest?v=41" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=41" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=41" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=41" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1104,7 +1104,7 @@
       </div>
       <div class="field hidden" id="invoice-field">
         <label for="field-invoice">Номер счета</label>
-        <input id="field-invoice" type="text" placeholder="Например, СЧ-104" />
+        <input id="field-invoice" type="text" placeholder="Например, СЧ-104" maxlength="40" />
       </div>
       <div class="field hidden" id="issue-field">
         <label for="field-issue" id="issue-label">Дата выдачи</label>
@@ -1261,7 +1261,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "40";
+    const APP_BUILD = "41";
     const KEPT_PAYMENTS = {
       "Даня": [
         {
@@ -1355,6 +1355,68 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return (record.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
     }
 
+    function normalizeInvoiceNumber(value) {
+      return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+    }
+
+    function invoiceDateOf(record) {
+      return record?.date || record?.issueDate || "";
+    }
+
+    function invoiceDupKey(record) {
+      if (!record || record.category !== "Счета") return "";
+      const num = normalizeInvoiceNumber(record.invoiceNumber);
+      const date = invoiceDateOf(record);
+      if (!num || !date) return "";
+      return num + "\n" + date;
+    }
+
+    function findDuplicateInvoice(name, record) {
+      const key = invoiceDupKey(record);
+      if (!key) return null;
+      return (db.contractors[name]?.records || []).find((r) => r.id !== record.id && invoiceDupKey(r) === key) || null;
+    }
+
+    function collapseDuplicateInvoices(contractor, deletedRecordIds) {
+      const recs = contractor.records || [];
+      const groups = new Map();
+      recs.forEach((r) => {
+        const key = invoiceDupKey(r);
+        if (!key) return;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(r);
+      });
+      const drop = new Set();
+      groups.forEach((rows) => {
+        if (rows.length < 2) return;
+        rows.sort((a, b) => {
+          const ap = (a.payments || []).length;
+          const bp = (b.payments || []).length;
+          if (bp !== ap) return bp - ap;
+          const aa = Number(a.amount) || 0;
+          const ba = Number(b.amount) || 0;
+          if (ba !== aa) return ba - aa;
+          return String(a.id || "").localeCompare(String(b.id || ""));
+        });
+        const keeper = rows[0];
+        if (!Array.isArray(keeper.payments)) keeper.payments = [];
+        const seen = new Set(keeper.payments.map((p) => p && p.id).filter(Boolean));
+        rows.slice(1).forEach((loser) => {
+          (loser.payments || []).forEach((p) => {
+            if (p && p.id && !seen.has(p.id)) {
+              keeper.payments.push(p);
+              seen.add(p.id);
+            }
+          });
+          if (loser.id) {
+            drop.add(loser.id);
+            if (!deletedRecordIds.includes(loser.id)) deletedRecordIds.push(loser.id);
+          }
+        });
+      });
+      if (drop.size) contractor.records = recs.filter((r) => !drop.has(r.id));
+    }
+
     function remainingOf(record) {
       return Math.round(((Number(record.amount) || 0) - paymentSum(record)) * 100) / 100;
     }
@@ -1425,6 +1487,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         });
       });
       contractor.records = debts;
+      collapseDuplicateInvoices(contractor, deletedRecordIds);
       contractor.unsortedPayments = [...unsortedMap.values()].filter((p) => !deletedPays.has(p.id));
       return contractor;
     }
@@ -2954,6 +3017,25 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
+      const invoiceNumber = isInvoice ? document.getElementById("field-invoice").value.trim() : null;
+      if (isInvoice && !invoiceNumber) {
+        error.textContent = "Укажите номер счета";
+        error.classList.add("show");
+        return;
+      }
+      if (isInvoice) {
+        const dup = findDuplicateInvoice(state.contractor, {
+          id: state.editingId || "new",
+          category: "Счета",
+          invoiceNumber,
+          date
+        });
+        if (dup) {
+          error.textContent = "Счёт № " + invoiceNumber + " на " + formatDate(date) + " уже есть. Откройте существующую запись.";
+          error.classList.add("show");
+          return;
+        }
+      }
 
       const subCategory = category === "Аренда помещения" ? document.getElementById("field-subcategory").value : null;
       const monthName = document.getElementById("field-month").value;
@@ -2970,7 +3052,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         date,
         month: isPeriod ? `${monthName} ${year}` : null,
         year: isPeriod ? year : null,
-        invoiceNumber: isInvoice ? document.getElementById("field-invoice").value.trim() : null,
+        invoiceNumber: isInvoice ? invoiceNumber : null,
         paymentMethod: null,
         comment: document.getElementById("field-comment").value.trim(),
         issueDate: isDebt ? issueDate : null,
