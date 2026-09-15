@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="51" />
+  <meta name="app-build" content="52" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=51" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=51" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=51" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=51" />
+  <link rel="manifest" href="manifest.webmanifest?v=52" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=52" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=52" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=52" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -224,6 +224,102 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.78rem;
       line-height: 1.4;
+    }
+
+    .login-wrap {
+      min-height: calc(100vh - 120px);
+      display: grid;
+      place-items: center;
+      padding: 24px 0 48px;
+    }
+
+    .login-card {
+      width: min(420px, 100%);
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 28px 24px 24px;
+    }
+
+    .login-card h1 {
+      font-size: 1.45rem;
+      margin-bottom: 8px;
+    }
+
+    .login-card .login-lead {
+      color: var(--text-secondary);
+      margin-bottom: 22px;
+      font-size: 0.95rem;
+    }
+
+    .login-card .btn-primary {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .session-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .session-who {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .session-who strong {
+      font-size: 1.05rem;
+    }
+
+    .session-who span {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .session-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .session-actions .back-btn:hover {
+      transform: none;
+    }
+
+    .cabinet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px;
+      max-height: 240px;
+      overflow: auto;
+    }
+
+    .cabinet-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .cabinet-row .cab-meta {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+    }
+
+    .cabinet-form-title {
+      font-size: 0.95rem;
+      margin: 4px 0 12px;
     }
 
     .home-totals {
@@ -1151,7 +1247,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=51" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=52" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1291,6 +1387,43 @@
     </form>
   </div>
 
+  <div class="overlay" id="cabinet-overlay" role="dialog" aria-modal="true">
+    <form class="modal" id="cabinet-form" novalidate>
+      <h2>Личные кабинеты</h2>
+      <p class="confirm-text">Пользователь получает свою книгу учёта. Должник выбирается из ваших контрагентов и видит ту же карточку, но с именем «Кариша».</p>
+      <div class="cabinet-list" id="cabinet-list"></div>
+      <div class="cabinet-form-title">Новый кабинет</div>
+      <div class="field">
+        <label>Тип кабинета</label>
+        <div class="type-toggle">
+          <button type="button" class="active debit" id="cab-role-user">Пользователь</button>
+          <button type="button" class="credit" id="cab-role-debtor">Должник</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="field-cab-login">Логин</label>
+        <input id="field-cab-login" type="text" autocomplete="off" maxlength="40" placeholder="латиницей" />
+      </div>
+      <div class="field">
+        <label for="field-cab-password">Пароль</label>
+        <input id="field-cab-password" type="text" autocomplete="off" maxlength="60" />
+      </div>
+      <div class="field" id="cab-name-field">
+        <label for="field-cab-name">Имя в кабинете</label>
+        <input id="field-cab-name" type="text" maxlength="60" placeholder="Как подписывать кабинет" />
+      </div>
+      <div class="field hidden" id="cab-contractor-field">
+        <label for="field-cab-contractor">Контрагент-должник</label>
+        <select id="field-cab-contractor"></select>
+      </div>
+      <div class="error" id="cabinet-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cabinet-cancel">Закрыть</button>
+        <button type="submit" class="btn-primary">Создать кабинет</button>
+      </div>
+    </form>
+  </div>
+
       <div class="overlay" id="sort-overlay" role="dialog" aria-modal="true">
     <form class="modal" id="sort-form" novalidate>
       <h2>Привязать выплату к долгу</h2>
@@ -1375,7 +1508,11 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "51";
+    const SESSION_KEY = "finansovyy-uchet-session";
+    const APP_BUILD = "52";
+    const ADMIN_LOGIN = "admin";
+    const ADMIN_PASSWORD = "baseadmin";
+    const OWNER_NAME = "Кариша";
     const DEFAULT_SYNC_URL = "https://sqsnhapkgtdjjkiexfrn.supabase.co";
     const DEFAULT_SYNC_KEY = "sb_publishable_2wQo7nf5W4eBQmiPorV9Kg_u-gjFYb-";
     const SYNC_SQL = `create table if not exists public.finance_state (
@@ -1429,11 +1566,116 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       repayTargetId: null,
       sortPaymentId: null,
       editPayment: null,
-      pendingDelete: null
+      pendingDelete: null,
+      homeYear: String(new Date().getFullYear()),
+      homeMonth: String(new Date().getMonth() + 1),
+      cabinetRole: "user"
     };
 
+    function sessionUser() {
+      try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function setSession(user) {
+      if (!user) sessionStorage.removeItem(SESSION_KEY);
+      else sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    }
+
+    function isAdmin() {
+      const s = sessionUser();
+      return Boolean(s && s.role === "admin");
+    }
+
+    function isDebtor() {
+      const s = sessionUser();
+      return Boolean(s && s.role === "debtor");
+    }
+
+    function isAppUser() {
+      const s = sessionUser();
+      return Boolean(s && s.role === "user");
+    }
+
+    function canEditBook() {
+      return !isDebtor();
+    }
+
+    function ownerName() {
+      return db.ownerName || OWNER_NAME;
+    }
+
+    function roleLabel(role) {
+      if (role === "admin") return "Администратор";
+      if (role === "debtor") return "Кабинет должника";
+      return "Пользователь";
+    }
+
+    function ensureUserBook(data, login) {
+      if (!data.userBooks || typeof data.userBooks !== "object") data.userBooks = {};
+      if (!data.userBooks[login]) {
+        data.userBooks[login] = {
+          contractors: {},
+          deletedRecordIds: [],
+          deletedPaymentIds: [],
+          deletedContractorNames: []
+        };
+      }
+      const book = data.userBooks[login];
+      if (!book.contractors) book.contractors = {};
+      if (!Array.isArray(book.deletedRecordIds)) book.deletedRecordIds = [];
+      if (!Array.isArray(book.deletedPaymentIds)) book.deletedPaymentIds = [];
+      if (!Array.isArray(book.deletedContractorNames)) book.deletedContractorNames = [];
+      return book;
+    }
+
+    function ensureAuthShape(data) {
+      if (!data.ownerName) data.ownerName = OWNER_NAME;
+      if (!Array.isArray(data.cabinets)) data.cabinets = [];
+      if (!data.userBooks || typeof data.userBooks !== "object") data.userBooks = {};
+      if (!Array.isArray(data.deletedCabinetLogins)) data.deletedCabinetLogins = [];
+      const hasAdmin = data.cabinets.some((c) => c && c.login === ADMIN_LOGIN);
+      if (!hasAdmin) {
+        data.cabinets.unshift({
+          login: ADMIN_LOGIN,
+          password: ADMIN_PASSWORD,
+          role: "admin",
+          displayName: data.ownerName
+        });
+      }
+      return data;
+    }
+
+    function activeStore() {
+      const s = sessionUser();
+      if (s && s.role === "user") return ensureUserBook(db, s.login);
+      return db;
+    }
+
+    function contractorsMap() {
+      const s = sessionUser();
+      if (s && s.role === "debtor") {
+        const src = db.contractors[s.contractorName];
+        if (!src) return {};
+        return { [ownerName()]: src };
+      }
+      return activeStore().contractors || {};
+    }
+
+    function sourceContractorName(name) {
+      const s = sessionUser();
+      if (s && s.role === "debtor") return s.contractorName || name;
+      return name;
+    }
+
     function contractorConfig(name) {
-      return SPECIAL[name] || { hasRental: false, hasDtf: false, hasInvoices: false };
+      if (isAppUser()) return { hasRental: false, hasDtf: false, hasInvoices: false };
+      const source = sourceContractorName(name);
+      return SPECIAL[source] || { hasRental: false, hasDtf: false, hasInvoices: false };
     }
 
     function migrateRecord(record) {
@@ -1475,7 +1717,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function findDuplicateInvoice(name, record) {
       const key = invoiceDupKey(record);
       if (!key) return null;
-      return (db.contractors[name]?.records || []).find((r) => r.id !== record.id && invoiceDupKey(r) === key) || null;
+      return (contractorsMap()[name]?.records || []).find((r) => r.id !== record.id && invoiceDupKey(r) === key) || null;
     }
 
     function collapseDuplicateInvoices(contractor, deletedRecordIds) {
@@ -1620,39 +1862,57 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return contractor;
     }
 
+    function migrateBook(book) {
+      if (!book.contractors) book.contractors = {};
+      if (!Array.isArray(book.deletedRecordIds)) book.deletedRecordIds = [];
+      if (!Array.isArray(book.deletedPaymentIds)) book.deletedPaymentIds = [];
+      if (!Array.isArray(book.deletedContractorNames)) book.deletedContractorNames = [];
+      const live = liveIdsInDict(book.contractors);
+      book.deletedPaymentIds = book.deletedPaymentIds.filter((id) => !live.has(id));
+      Object.keys(book.contractors).forEach((name) => {
+        book.contractors[name] = migrateContractor(
+          book.contractors[name] || { records: [] },
+          book.deletedRecordIds,
+          book.deletedPaymentIds
+        );
+      });
+      return book;
+    }
+
     function migrateDb(data) {
+      ensureAuthShape(data);
       if (!data.contractors) data.contractors = {};
       if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
-      const live = livePaymentIds(data);
-      data.deletedPaymentIds = data.deletedPaymentIds.filter((id) => !live.has(id));
-      Object.keys(data.contractors).forEach((name) => {
-        data.contractors[name] = migrateContractor(
-          data.contractors[name] || { records: [] },
-          data.deletedRecordIds,
-          data.deletedPaymentIds
-        );
+      migrateBook(data);
+      Object.keys(data.userBooks || {}).forEach((login) => {
+        data.userBooks[login] = migrateBook(data.userBooks[login] || {});
       });
       return data;
     }
 
     function defaultData() {
-      return {
+      return ensureAuthShape({
+        ownerName: OWNER_NAME,
         contractors: {
           "Даня": { records: [] },
           "Максюшка": { records: [] }
         },
         deletedRecordIds: [],
         deletedPaymentIds: [],
-        deletedContractorNames: []
-      };
+        deletedContractorNames: [],
+        deletedCabinetLogins: [],
+        cabinets: [],
+        userBooks: {}
+      });
     }
 
     function loadData() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const data = raw ? JSON.parse(raw) : defaultData();
+        ensureAuthShape(data);
         if (!data.contractors) data.contractors = {};
         if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
         const removed = new Set(data.deletedContractorNames);
@@ -1734,13 +1994,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       btn.setAttribute("aria-busy", status === "busy" ? "true" : "false");
     }
 
-    function livePaymentIds(data) {
+    function liveIdsInDict(contractors) {
       const ids = new Set();
-      Object.values(data?.contractors || {}).forEach((c) => {
+      Object.values(contractors || {}).forEach((c) => {
         (c.unsortedPayments || []).forEach((p) => { if (p && p.id) ids.add(p.id); });
         (c.records || []).forEach((r) => {
           (r.payments || []).forEach((p) => { if (p && p.id) ids.add(p.id); });
         });
+      });
+      return ids;
+    }
+
+    function livePaymentIds(data) {
+      const ids = liveIdsInDict(data?.contractors);
+      Object.values(data?.userBooks || {}).forEach((book) => {
+        liveIdsInDict(book?.contractors).forEach((id) => ids.add(id));
       });
       return ids;
     }
@@ -1755,29 +2023,17 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return map;
     }
 
-    function mergeFinanceData(local, remote) {
-      const out = defaultData();
-      const localTs = Number(local.updatedAt) || 0;
-      const remoteTs = Number(remote.updatedAt) || 0;
-      const newer = remoteTs >= localTs ? remote : local;
-      const older = newer === remote ? local : remote;
-      const newerLive = livePaymentIds(newer);
-      const deleted = new Set([...(local.deletedRecordIds || []), ...(remote.deletedRecordIds || [])]);
-      const deletedPays = new Set(newer.deletedPaymentIds || []);
-      (older.deletedPaymentIds || []).forEach((id) => {
-        if (id && !newerLive.has(id)) deletedPays.add(id);
-      });
-      newerLive.forEach((id) => deletedPays.delete(id));
-      const deletedNames = new Set([...(local.deletedContractorNames || []), ...(remote.deletedContractorNames || [])]);
+    function mergeContractorDict(localDict, remoteDict, newerDict, olderDict, deleted, deletedPays, deletedNames) {
+      const out = {};
       const names = new Set([
-        ...Object.keys(local.contractors || {}),
-        ...Object.keys(remote.contractors || {})
+        ...Object.keys(localDict || {}),
+        ...Object.keys(remoteDict || {})
       ]);
       names.forEach((name) => {
         if (deletedNames.has(name)) return;
         const map = new Map();
-        const remoteList = remote.contractors?.[name]?.records || [];
-        const localList = local.contractors?.[name]?.records || [];
+        const remoteList = remoteDict?.[name]?.records || [];
+        const localList = localDict?.[name]?.records || [];
         remoteList.concat(localList).forEach((rec) => {
           if (!rec || !rec.id || deleted.has(rec.id)) return;
           const incoming = migrateRecord(rec);
@@ -1793,8 +2049,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           });
           map.set(incoming.id, { ...incoming, payments: [...pmap.values()] });
         });
-        const newerC = newer.contractors?.[name] || {};
-        const olderC = older.contractors?.[name] || {};
+        const newerC = newerDict?.[name] || {};
+        const olderC = olderDict?.[name] || {};
         const assign = paymentOwnerMap(olderC);
         paymentOwnerMap(newerC).forEach((debtId, payId) => assign.set(payId, debtId));
         map.forEach((rec) => {
@@ -1804,7 +2060,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             return !owner || owner === rec.id;
           });
         });
-        out.contractors[name] = {
+        out[name] = {
           records: [...map.values()],
           unsortedPayments: (() => {
             const umap = new Map();
@@ -1818,11 +2074,80 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           autoPaymentsShelved: Boolean(newerC.autoPaymentsShelved || olderC.autoPaymentsShelved)
         };
       });
+      return out;
+    }
+
+    function mergeBookMeta(localBook, remoteBook, newerBook, olderBook) {
+      const newerLive = liveIdsInDict(newerBook?.contractors);
+      const deleted = new Set([...(localBook.deletedRecordIds || []), ...(remoteBook.deletedRecordIds || [])]);
+      const deletedPays = new Set(newerBook.deletedPaymentIds || []);
+      (olderBook.deletedPaymentIds || []).forEach((id) => {
+        if (id && !newerLive.has(id)) deletedPays.add(id);
+      });
+      newerLive.forEach((id) => deletedPays.delete(id));
+      const deletedNames = new Set([...(localBook.deletedContractorNames || []), ...(remoteBook.deletedContractorNames || [])]);
+      return {
+        contractors: mergeContractorDict(
+          localBook.contractors,
+          remoteBook.contractors,
+          newerBook.contractors,
+          olderBook.contractors,
+          deleted,
+          deletedPays,
+          deletedNames
+        ),
+        deletedRecordIds: [...deleted],
+        deletedPaymentIds: [...deletedPays],
+        deletedContractorNames: [...deletedNames]
+      };
+    }
+
+    function mergeFinanceData(local, remote) {
+      const localTs = Number(local.updatedAt) || 0;
+      const remoteTs = Number(remote.updatedAt) || 0;
+      const newer = remoteTs >= localTs ? remote : local;
+      const older = newer === remote ? local : remote;
+      const adminMerged = mergeBookMeta(local, remote, newer, older);
+      const out = defaultData();
+      out.contractors = adminMerged.contractors;
+      const deletedNames = new Set(adminMerged.deletedContractorNames);
       if (!deletedNames.has("Даня") && !out.contractors["Даня"]) out.contractors["Даня"] = { records: [] };
       if (!deletedNames.has("Максюшка") && !out.contractors["Максюшка"]) out.contractors["Максюшка"] = { records: [] };
-      out.deletedRecordIds = [...deleted];
-      out.deletedPaymentIds = [...deletedPays];
-      out.deletedContractorNames = [...deletedNames];
+      out.deletedRecordIds = adminMerged.deletedRecordIds;
+      out.deletedPaymentIds = adminMerged.deletedPaymentIds;
+      out.deletedContractorNames = adminMerged.deletedContractorNames;
+      out.ownerName = newer.ownerName || local.ownerName || OWNER_NAME;
+      const deletedCabs = new Set([...(local.deletedCabinetLogins || []), ...(remote.deletedCabinetLogins || [])]);
+      const cabMap = new Map();
+      [...(local.cabinets || []), ...(remote.cabinets || [])].forEach((c) => {
+        if (c && c.login && !deletedCabs.has(c.login)) cabMap.set(c.login, c);
+      });
+      (newer.cabinets || []).forEach((c) => {
+        if (c && c.login && !deletedCabs.has(c.login)) cabMap.set(c.login, c);
+      });
+      if (!cabMap.has(ADMIN_LOGIN)) {
+        cabMap.set(ADMIN_LOGIN, {
+          login: ADMIN_LOGIN,
+          password: ADMIN_PASSWORD,
+          role: "admin",
+          displayName: out.ownerName
+        });
+      }
+      out.cabinets = [...cabMap.values()];
+      out.deletedCabinetLogins = [...deletedCabs];
+      out.userBooks = {};
+      const bookLogins = new Set([
+        ...Object.keys(local.userBooks || {}),
+        ...Object.keys(remote.userBooks || {})
+      ]);
+      bookLogins.forEach((login) => {
+        if (deletedCabs.has(login)) return;
+        const lb = local.userBooks?.[login] || {};
+        const rb = remote.userBooks?.[login] || {};
+        const nb = newer.userBooks?.[login] || lb;
+        const ob = older.userBooks?.[login] || rb;
+        out.userBooks[login] = mergeBookMeta(lb, rb, nb, ob);
+      });
       out.updatedAt = Date.now();
       return migrateDb(out);
     }
@@ -1960,7 +2285,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function contractorNames() {
-      const names = Object.keys(db.contractors || {});
+      const names = Object.keys(contractorsMap() || {});
+      if (!isAdmin()) {
+        return names.sort((a, b) => a.localeCompare(b, "ru"));
+      }
       const special = ["Даня", "Максюшка"].filter((name) => names.includes(name));
       const extras = names
         .filter((name) => name !== "Даня" && name !== "Максюшка")
@@ -1969,7 +2297,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function currentRecords() {
-      return db.contractors[state.contractor]?.records || [];
+      return contractorsMap()[state.contractor]?.records || [];
     }
 
     function recordYearMonth(record) {
@@ -1993,11 +2321,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function debtRecords(name) {
-      return (db.contractors[name]?.records || []).filter((r) => r.type !== "Кредит");
+      return (contractorsMap()[name]?.records || []).filter((r) => r.type !== "Кредит");
     }
 
     function unsortedPayments(name) {
-      return db.contractors[name]?.unsortedPayments || [];
+      return contractorsMap()[name]?.unsortedPayments || [];
     }
 
     function unsortedSum(name, usePeriod) {
@@ -2032,7 +2360,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const dtf = add((r) => r.category === "Аренда ДТФ");
       const cash = add((r) => r.category === "Деньги в долг" && r.loanSide !== "in");
       const invoices = add((r) => r.category === "Счета");
-      if (name === "Даня") {
+      if (sourceContractorName(name) === "Даня") {
         return { rent: rentOnly + utilities, dtf, cash, invoices };
       }
       return { rent: rentOnly + dtf, utilities, cash, invoices };
@@ -2064,7 +2392,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function debitBreakdownRows(name, split) {
-      if (name === "Даня") {
+      if (sourceContractorName(name) === "Даня") {
         return [
           ["Всего за аренду", split.rent],
           ["Всего Аренда ДТФ", split.dtf],
@@ -2089,6 +2417,79 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (isBorrowed(r)) return "Наш долг";
       if (r.category === "Деньги в долг") return "Выдали";
       return "Долг";
+    }
+
+    function monthRange(year, month) {
+      const y = Number(year);
+      const m = Number(month);
+      const start = y + "-" + String(m).padStart(2, "0") + "-01";
+      const last = new Date(y, m, 0).getDate();
+      const end = y + "-" + String(m).padStart(2, "0") + "-" + String(last).padStart(2, "0");
+      return { start, end };
+    }
+
+    function loanAccrualEnd(r) {
+      if (isFullyPaid(r)) {
+        const pays = (r.payments || []).map((p) => p.date).filter(Boolean).sort();
+        return pays[pays.length - 1] || r.returnDate || r.issueDate || r.date || todayIso();
+      }
+      return todayIso();
+    }
+
+    function interestInMonth(r, year, month) {
+      if (!r || r.category !== "Деньги в долг") return 0;
+      const rate = Number(r.interestRate != null ? r.interestRate : r.rate) || 0;
+      const amount = Number(r.amount) || 0;
+      const issue = r.issueDate || r.date;
+      if (!issue) return 0;
+      const { start, end } = monthRange(year, month);
+      if (!rate) {
+        const ym = recordYearMonth({ date: issue, issueDate: issue });
+        if (ym && Number(ym.year) === Number(year) && Number(ym.month) === Number(month)) {
+          return Number(r.profit) || 0;
+        }
+        return 0;
+      }
+      const loanEnd = loanAccrualEnd(r);
+      const from = issue > start ? issue : start;
+      const to = loanEnd < end ? loanEnd : end;
+      if (!from || !to || from >= to) return 0;
+      return (amount * rate / 100) * (daysBetween(from, to) / 365);
+    }
+
+    function interestProfitMonth(name, year, month) {
+      return debtRecords(name)
+        .filter((r) => r.category === "Деньги в долг" && r.loanSide !== "in")
+        .reduce((sum, r) => sum + interestInMonth(r, year, month), 0);
+    }
+
+    function interestLossMonth(name, year, month) {
+      return debtRecords(name)
+        .filter(isBorrowed)
+        .reduce((sum, r) => sum + interestInMonth(r, year, month), 0);
+    }
+
+    function globalMonthStats(year, month) {
+      let profit = 0;
+      let loss = 0;
+      contractorNames().forEach((name) => {
+        profit += interestProfitMonth(name, year, month);
+        loss += interestLossMonth(name, year, month);
+      });
+      return { profit, loss };
+    }
+
+    function allPeriodYears() {
+      const years = new Set();
+      const now = new Date().getFullYear();
+      for (let y = 2020; y <= Math.max(now, 2030); y++) years.add(y);
+      contractorNames().forEach((name) => {
+        debtRecords(name).forEach((r) => {
+          const ym = recordYearMonth(r);
+          if (ym && ym.year) years.add(ym.year);
+        });
+      });
+      return [...years].sort((a, b) => b - a);
     }
 
     function interestProfit(name) {
@@ -2258,6 +2659,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function render() {
       if (state.paymentFilter === "На счёт юрлица") state.paymentFilter = "Безналичный расчёт";
       const root = document.getElementById("app");
+      if (!sessionUser()) {
+        root.innerHTML = renderLogin();
+        bindLogin();
+        return;
+      }
       if (state.view === "home") {
         root.innerHTML = renderHome();
       } else {
@@ -2266,17 +2672,123 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       bindView();
     }
 
+    function bindLogin() {
+      document.getElementById("login-form")?.addEventListener("submit", submitLogin);
+    }
+
+    function renderLogin() {
+      return `
+        <div class="login-wrap">
+          <form class="login-card" id="login-form">
+            <h1>Вход в кабинет</h1>
+            <p class="login-lead">Выберите месяц в кабинете, чтобы увидеть прибыль. Администратор создаёт кабинеты пользователям и должникам.</p>
+            <div class="field">
+              <label for="login-name">Логин</label>
+              <input id="login-name" type="text" autocomplete="username" required />
+            </div>
+            <div class="field">
+              <label for="login-pass">Пароль</label>
+              <input id="login-pass" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="error" id="login-error"></div>
+            <button type="submit" class="btn-primary">Войти</button>
+          </form>
+        </div>
+      `;
+    }
+
+    function submitLogin(event) {
+      event.preventDefault();
+      const error = document.getElementById("login-error");
+      const login = document.getElementById("login-name").value.trim();
+      const password = document.getElementById("login-pass").value;
+      const user = authenticate(login, password);
+      if (!user) {
+        error.textContent = "Неверный логин или пароль";
+        error.classList.add("show");
+        return;
+      }
+      setSession(user);
+      state.view = "home";
+      state.contractor = null;
+      render();
+      showToast("Вы вошли как " + (user.displayName || user.login));
+    }
+
+    function authenticate(login, password) {
+      if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
+        return { login: ADMIN_LOGIN, role: "admin", displayName: ownerName() };
+      }
+      const cab = (db.cabinets || []).find((c) => c && c.login === login);
+      if (!cab || cab.password !== password) return null;
+      return {
+        login: cab.login,
+        role: cab.role || "user",
+        displayName: cab.displayName || cab.login,
+        contractorName: cab.contractorName || null
+      };
+    }
+
+    function logout() {
+      setSession(null);
+      state.view = "home";
+      state.contractor = null;
+      closeOverlays();
+      render();
+    }
+
+    function renderSessionBar() {
+      const s = sessionUser();
+      if (!s) return "";
+      return `
+        <div class="session-bar">
+          <div class="session-who">
+            <strong>${escapeHtml(s.displayName || s.login)}</strong>
+            <span>${escapeHtml(roleLabel(s.role))}</span>
+          </div>
+          <div class="session-actions">
+            ${isAdmin() ? `<button type="button" class="back-btn" id="open-cabinets">Личные кабинеты</button>` : ""}
+            <button type="button" class="back-btn" id="logout-btn">Выйти</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function recordActionButtons(r) {
+      if (!canEditBook()) return "";
+      return `
+            <div class="actions">
+              ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}" title="Внести выплату">Оплата</button>`}
+              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Открыть долг" aria-label="Открыть долг">✏️</button>
+              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" title="Удалить" aria-label="Удалить">🗑️</button>
+            </div>`;
+    }
+
+    function sortActionButtons(p) {
+      if (!canEditBook()) return "";
+      return `
+                <div class="actions">
+                  <button class="text-btn" data-sort-assign="${escapeHtml(p.id)}">К долгу</button>
+                  <button class="icon-btn" data-sort-edit="${escapeHtml(p.id)}" title="Изменить выплату" aria-label="Изменить выплату">✏️</button>
+                  <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}" title="Удалить выплату">🗑️</button>
+                </div>`;
+    }
+
     function renderHome() {
       const totalsAll = globalDebtAndProfit();
+      const monthStats = globalMonthStats(state.homeYear, state.homeMonth);
+      const monthName = MONTHS[Number(state.homeMonth) - 1] || "";
       const cards = contractorNames().map((name) => {
         const cfg = contractorConfig(name);
         const t = totals(name);
-        const profit = interestProfit(name);
-        const loss = interestLoss(name);
+        const profit = interestProfitMonth(name, state.homeYear, state.homeMonth);
+        const loss = interestLossMonth(name, state.homeYear, state.homeMonth);
         const ours = ourDebt(name);
         const sortCount = unsortedPayments(name).length;
         const overdue = hasOverdueDebt(name);
-        const meta = cfg.hasRental ? "Аренда и займы" : "Только займы";
+        const meta = isDebtor()
+          ? ("Ваша карточка у " + ownerName())
+          : (cfg.hasRental ? "Аренда и займы" : "Только займы");
         const split = cfg.hasRental ? debitBreakdown(name) : null;
         const splitHtml = split ? `
             <div class="card-split">
@@ -2291,14 +2803,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <button class="contractor-card ${overdue ? "overdue" : ""}" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
-            <div class="meta">${meta}</div>
+            <div class="meta">${escapeHtml(meta)}</div>
             <div class="card-stats">
               <div class="stat">
                 <div class="stat-label">Сальдо</div>
                 <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
               </div>
               <div class="stat">
-                <div class="stat-label">Прибыль</div>
+                <div class="stat-label">Прибыль за месяц</div>
                 <div class="stat-value profit">${formatMoney(profit)}</div>
               </div>
               <div class="stat">
@@ -2314,37 +2826,56 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
             ${sortCount ? `<div class="card-sort-mark">Требует сортировки: ${sortCount}</div>` : ""}
           </button>
-          <button type="button" class="card-delete" data-delete-contractor="${escapeHtml(name)}" title="Удалить карточку" aria-label="Удалить карточку">✕</button>
+          ${canEditBook() ? `<button type="button" class="card-delete" data-delete-contractor="${escapeHtml(name)}" title="Удалить карточку" aria-label="Удалить карточку">✕</button>` : ""}
           </div>
         `;
       }).join("");
 
+      const empty = !contractorNames().length
+        ? `<div class="empty">${isDebtor() ? "Карточка пока недоступна. Попросите администратора привязать кабинет к контрагенту." : "Контрагентов пока нет — добавьте первого должника."}</div>`
+        : "";
+
       return `
+        ${renderSessionBar()}
+        <div class="analytics">
+          <div class="analytics-head">
+            <span class="title">Прибыль за месяц</span>
+            <select id="home-period-month">
+              ${MONTHS.map((label, i) => `<option value="${i + 1}" ${String(i + 1) === String(state.homeMonth) ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
+            <select id="home-period-year">
+              ${allPeriodYears().map((y) => `<option value="${y}" ${String(y) === String(state.homeYear) ? "selected" : ""}>${y}</option>`).join("")}
+            </select>
+          </div>
+          <div class="analytics-caption">${escapeHtml(monthName + " " + state.homeYear)} · проценты по займам за этот месяц</div>
+        </div>
         <div class="home-totals">
           <div class="summary-card saldo">
             <div class="label">Сумма долгов</div>
             <div class="value ${saldoTone(totalsAll.debt)}">${formatMoney(totalsAll.debt)}</div>
           </div>
           <div class="summary-card">
-            <div class="label">Прибыль по процентам</div>
-            <div class="value profit">${formatMoney(totalsAll.profit)}</div>
+            <div class="label">Прибыль за ${escapeHtml(monthName)}</div>
+            <div class="value profit">${formatMoney(monthStats.profit)}</div>
           </div>
           <div class="summary-card saldo">
             <div class="label">Сумма наших долгов</div>
             <div class="value ${totalsAll.ours ? "negative" : "zero"}">${formatMoney(totalsAll.ours)}</div>
           </div>
           <div class="summary-card">
-            <div class="label">Потери на процентах</div>
-            <div class="value loss">${formatMoney(totalsAll.loss)}</div>
+            <div class="label">Потери за ${escapeHtml(monthName)}</div>
+            <div class="value loss">${formatMoney(monthStats.loss)}</div>
           </div>
         </div>
         <div class="contractors">
           ${cards}
+          ${canEditBook() ? `
           <button class="add-contractor" id="add-contractor">
             <div class="icon">➕</div>
-            <div class="name">Добавить контрагента</div>
-          </button>
+            <div class="name">${isAppUser() ? "Добавить должника" : "Добавить контрагента"}</div>
+          </button>` : ""}
         </div>
+        ${empty}
       `;
     }
 
@@ -2413,11 +2944,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <td class="muted">${r.category === "Деньги в долг" ? (isBorrowed(r) ? "потери " : "") + formatMoney(r.profit) : "—"}</td>
           <td class="wrap muted">${escapeHtml(r.comment || "—")}</td>
           <td>
-            <div class="actions">
-              ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}" title="Внести выплату">Оплата</button>`}
-              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Открыть долг" aria-label="Открыть долг">✏️</button>
-              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" title="Удалить" aria-label="Удалить">🗑️</button>
-            </div>
+            ${recordActionButtons(r)}
           </td>
         </tr>
       `).join("");
@@ -2436,9 +2963,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
           <div class="row card-footer">
             <span class="actions">
+              ${canEditBook() ? `
               ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>`}
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Открыть долг">✏️</button>
-              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>
+              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>` : `<span class="muted">Только просмотр</span>`}
             </span>
           </div>
         </div>
@@ -2522,11 +3050,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               <td>${escapeHtml(p.paymentMethod || "—")}</td>
               <td class="wrap muted">${escapeHtml(p.comment || "—")}</td>
               <td>
-                <div class="actions">
-                  <button class="text-btn" data-sort-assign="${escapeHtml(p.id)}">К долгу</button>
-                  <button class="icon-btn" data-sort-edit="${escapeHtml(p.id)}" title="Изменить выплату" aria-label="Изменить выплату">✏️</button>
-                  <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}" title="Удалить выплату">🗑️</button>
-                </div>
+                ${sortActionButtons(p)}
               </td>
             </tr>
           `).join("");
@@ -2537,9 +3061,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               <div class="row muted">
                 <span></span>
                 <span class="actions">
+                  ${canEditBook() ? `
                   <button class="text-btn" data-sort-assign="${escapeHtml(p.id)}">К долгу</button>
                   <button class="icon-btn" data-sort-edit="${escapeHtml(p.id)}" aria-label="Изменить выплату">✏️</button>
-                  <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}">🗑️</button>
+                  <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}">🗑️</button>` : `<span class="muted">Только просмотр</span>`}
                 </span>
               </div>
             </div>
@@ -2565,9 +3090,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
 
       return `
+        ${renderSessionBar()}
         <div class="topbar">
           <button class="back-btn" id="back-home">← Назад</button>
-          <button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>
+          ${canEditBook() ? `<button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>` : ""}
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
         ${hasOverdueDebt(name) ? `<p class="overdue-mark" style="text-align:center;margin:-12px 0 18px;">Просрочен возврат долга</p>` : ""}
@@ -2628,7 +3154,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ${subtabs}
         ${isSortTab() ? `<p class="sort-note">Временный список выплат, которые ещё не привязаны к долгу. Выберите долг для каждой — после разборки вкладку уберём.</p>` : ""}
         <div class="records-head">
-          ${isSortTab() ? "" : `<button class="add-record" id="add-record">${isPaidTab() ? "➕ Внести выплату" : "➕ Добавить запись"}</button>`}
+          ${isSortTab() || !canEditBook() ? "" : `<button class="add-record" id="add-record">${isPaidTab() ? "➕ Внести выплату" : "➕ Добавить запись"}</button>`}
           ${paymentFilter}
         </div>
         <div class="table-panel ${state.recordsCollapsed ? "hidden" : ""}">${isSortTab() ? sortBody : body}</div>
@@ -2638,6 +3164,16 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function bindView() {
       document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
+      document.getElementById("logout-btn")?.addEventListener("click", logout);
+      document.getElementById("open-cabinets")?.addEventListener("click", openCabinetModal);
+      document.getElementById("home-period-month")?.addEventListener("change", (e) => {
+        state.homeMonth = e.target.value;
+        render();
+      });
+      document.getElementById("home-period-year")?.addEventListener("change", (e) => {
+        state.homeYear = e.target.value;
+        render();
+      });
       document.getElementById("back-home")?.addEventListener("click", () => {
         state.view = "home";
         state.contractor = null;
@@ -2829,7 +3365,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function applyPaymentToDebt(name, debtId, payment, options) {
-      const contractor = db.contractors[name];
+      const contractor = contractorsMap()[name];
       const rec = (contractor?.records || []).find((r) => r.id === debtId);
       if (!rec || !payment) return null;
       if (!Array.isArray(rec.payments)) rec.payments = [];
@@ -2864,7 +3400,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function returnPaymentToUnsorted(name, debtId, paymentId) {
-      const contractor = db.contractors[name];
+      const contractor = contractorsMap()[name];
       const rec = (contractor?.records || []).find((r) => r.id === debtId);
       if (!rec) return null;
       const pay = (rec.payments || []).find((p) => p.id === paymentId);
@@ -2982,6 +3518,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function openRecordModal(id, opts) {
+      if (!canEditBook()) return;
       const options = opts || {};
       const form = document.getElementById("record-form");
       form.reset();
@@ -3115,6 +3652,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function submitRecord(event) {
       event.preventDefault();
+      if (!canEditBook()) return;
       const error = document.getElementById("record-error");
       error.classList.remove("show");
       if (!state.editingId && state.recordType === "Кредит") {
@@ -3214,7 +3752,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         payments: existing && Array.isArray(existing.payments) ? existing.payments : []
       };
 
-      const list = db.contractors[state.contractor].records;
+      const list = contractorsMap()[state.contractor].records;
       const idx = list.findIndex((r) => r.id === record.id);
       if (idx >= 0) list[idx] = record;
       else list.push(record);
@@ -3328,7 +3866,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function findEditablePayment(spec) {
       if (!spec || !spec.id) return null;
-      const contractor = db.contractors[state.contractor];
+      const contractor = contractorsMap()[state.contractor];
       if (!contractor) return null;
       if (spec.source === "unsorted") {
         const pay = (contractor.unsortedPayments || []).find((p) => p.id === spec.id);
@@ -3402,7 +3940,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         leftover = Math.round((rounded - applied) * 100) / 100;
         if (applied <= 0.009) {
           rec.payments = (rec.payments || []).filter((p) => p.id !== found.pay.id);
-          const contractor = db.contractors[state.contractor];
+          const contractor = contractorsMap()[state.contractor];
           if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
           contractor.unsortedPayments.unshift({
             id: found.pay.id,
@@ -3414,7 +3952,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         } else {
           found.pay.amount = applied;
           if (leftover > 0.009) {
-            const contractor = db.contractors[state.contractor];
+            const contractor = contractorsMap()[state.contractor];
             if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
             contractor.unsortedPayments.unshift({
               id: uid(),
@@ -3447,7 +3985,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
-      const contractor = db.contractors[state.contractor];
+      const contractor = contractorsMap()[state.contractor];
       const pay = (contractor.unsortedPayments || []).find((p) => p.id === payId);
       if (!pay) {
         error.textContent = "Не удалось привязать выплату";
@@ -3473,20 +4011,39 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function confirmDelete() {
       const pending = state.pendingDelete;
       if (!pending) return;
+      const store = activeStore();
+      if (pending.kind === "cabinet") {
+        const login = pending.login;
+        if (login === ADMIN_LOGIN) {
+          state.pendingDelete = null;
+          document.getElementById("confirm-overlay").classList.remove("open");
+          return;
+        }
+        db.cabinets = (db.cabinets || []).filter((c) => c.login !== login);
+        db.deletedCabinetLogins = db.deletedCabinetLogins || [];
+        if (!db.deletedCabinetLogins.includes(login)) db.deletedCabinetLogins.push(login);
+        if (db.userBooks) delete db.userBooks[login];
+        saveData(db);
+        state.pendingDelete = null;
+        document.getElementById("confirm-overlay").classList.remove("open");
+        fillCabinetModal();
+        showToast("Кабинет удалён");
+        return;
+      }
       if (pending.kind === "contractor") {
         const name = pending.name;
-        const records = db.contractors[name]?.records || [];
-        db.deletedRecordIds = db.deletedRecordIds || [];
-        db.deletedPaymentIds = db.deletedPaymentIds || [];
+        const records = store.contractors[name]?.records || [];
+        store.deletedRecordIds = store.deletedRecordIds || [];
+        store.deletedPaymentIds = store.deletedPaymentIds || [];
         records.forEach((r) => {
-          if (r.id && !db.deletedRecordIds.includes(r.id)) db.deletedRecordIds.push(r.id);
+          if (r.id && !store.deletedRecordIds.includes(r.id)) store.deletedRecordIds.push(r.id);
         });
-        (db.contractors[name]?.unsortedPayments || []).forEach((p) => {
-          if (p.id && !db.deletedPaymentIds.includes(p.id)) db.deletedPaymentIds.push(p.id);
+        (store.contractors[name]?.unsortedPayments || []).forEach((p) => {
+          if (p.id && !store.deletedPaymentIds.includes(p.id)) store.deletedPaymentIds.push(p.id);
         });
-        db.deletedContractorNames = db.deletedContractorNames || [];
-        if (!db.deletedContractorNames.includes(name)) db.deletedContractorNames.push(name);
-        delete db.contractors[name];
+        store.deletedContractorNames = store.deletedContractorNames || [];
+        if (!store.deletedContractorNames.includes(name)) store.deletedContractorNames.push(name);
+        delete store.contractors[name];
         saveData(db);
         state.pendingDelete = null;
         document.getElementById("confirm-overlay").classList.remove("open");
@@ -3510,12 +4067,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         return;
       }
       if (pending.kind === "unsorted") {
-        const contractor = db.contractors[state.contractor];
+        const contractor = contractorsMap()[state.contractor];
         if (contractor) {
           contractor.unsortedPayments = (contractor.unsortedPayments || []).filter((p) => p.id !== pending.id);
         }
-        db.deletedPaymentIds = db.deletedPaymentIds || [];
-        if (pending.id && !db.deletedPaymentIds.includes(pending.id)) db.deletedPaymentIds.push(pending.id);
+        store.deletedPaymentIds = store.deletedPaymentIds || [];
+        if (pending.id && !store.deletedPaymentIds.includes(pending.id)) store.deletedPaymentIds.push(pending.id);
         saveData(db);
         state.pendingDelete = null;
         document.getElementById("confirm-overlay").classList.remove("open");
@@ -3525,9 +4082,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       const id = pending.id;
       if (!id) return;
-      db.deletedRecordIds = db.deletedRecordIds || [];
-      if (!db.deletedRecordIds.includes(id)) db.deletedRecordIds.push(id);
-      db.contractors[state.contractor].records = currentRecords().filter((r) => r.id !== id);
+      store.deletedRecordIds = store.deletedRecordIds || [];
+      if (!store.deletedRecordIds.includes(id)) store.deletedRecordIds.push(id);
+      contractorsMap()[state.contractor].records = currentRecords().filter((r) => r.id !== id);
       saveData(db);
       state.pendingDelete = null;
       document.getElementById("confirm-overlay").classList.remove("open");
@@ -3536,6 +4093,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function openContractorModal() {
+      if (!canEditBook()) return;
       document.getElementById("contractor-form").reset();
       document.getElementById("contractor-error").classList.remove("show");
       document.getElementById("contractor-overlay").classList.add("open");
@@ -3584,22 +4142,166 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
-      if (db.contractors[name]) {
+      const map = contractorsMap();
+      const store = activeStore();
+      if (map[name]) {
         error.textContent = "Контрагент с таким именем уже существует";
         error.classList.add("show");
         return;
       }
-      db.deletedContractorNames = (db.deletedContractorNames || []).filter((n) => n !== name);
-      db.contractors[name] = { records: [], unsortedPayments: [], autoPaymentsShelved: true };
+      store.deletedContractorNames = (store.deletedContractorNames || []).filter((n) => n !== name);
+      store.contractors[name] = { records: [], unsortedPayments: [], autoPaymentsShelved: true };
       saveData(db);
       closeContractorModal();
       render();
-      showToast("Контрагент добавлен");
+      showToast(isAppUser() ? "Должник добавлен" : "Контрагент добавлен");
+    }
+
+    function adminContractorNames() {
+      const names = Object.keys(db.contractors || {});
+      const special = ["Даня", "Максюшка"].filter((name) => names.includes(name));
+      const extras = names
+        .filter((name) => name !== "Даня" && name !== "Максюшка")
+        .sort((a, b) => a.localeCompare(b, "ru"));
+      return [...special, ...extras];
+    }
+
+    function takenDebtorContractors() {
+      return new Set(
+        (db.cabinets || [])
+          .filter((c) => c && c.role === "debtor" && c.contractorName)
+          .map((c) => c.contractorName)
+      );
+    }
+
+    function syncCabinetFields() {
+      const debtor = state.cabinetRole === "debtor";
+      document.getElementById("cab-role-user").classList.toggle("active", !debtor);
+      document.getElementById("cab-role-debtor").classList.toggle("active", debtor);
+      document.getElementById("cab-name-field").classList.toggle("hidden", debtor);
+      document.getElementById("cab-contractor-field").classList.toggle("hidden", !debtor);
+    }
+
+    function fillCabinetModal() {
+      const list = document.getElementById("cabinet-list");
+      const rows = (db.cabinets || []).slice().sort((a, b) => {
+        if (a.login === ADMIN_LOGIN) return -1;
+        if (b.login === ADMIN_LOGIN) return 1;
+        return String(a.login).localeCompare(String(b.login), "ru");
+      });
+      list.innerHTML = rows.map((c) => {
+        const kind = c.role === "debtor"
+          ? ("должник · карточка «" + (c.contractorName || "—") + "»")
+          : (c.role === "admin" ? "администратор" : "пользователь");
+        const del = c.login === ADMIN_LOGIN
+          ? ""
+          : `<button type="button" class="icon-btn danger" data-delete-cabinet="${escapeHtml(c.login)}" title="Удалить кабинет">🗑️</button>`;
+        return `
+          <div class="cabinet-row">
+            <div>
+              <div><strong>${escapeHtml(c.displayName || c.login)}</strong> · ${escapeHtml(c.login)}</div>
+              <div class="cab-meta">${escapeHtml(kind)}</div>
+            </div>
+            ${del}
+          </div>
+        `;
+      }).join("");
+      list.querySelectorAll("[data-delete-cabinet]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const login = btn.getAttribute("data-delete-cabinet");
+          state.pendingDelete = { kind: "cabinet", login };
+          openConfirm("Удалить кабинет?", "Логин «" + login + "» больше не сможет войти. Карточка контрагента в вашей книге останется.");
+        });
+      });
+      const taken = takenDebtorContractors();
+      const options = adminContractorNames().filter((name) => !taken.has(name));
+      const select = document.getElementById("field-cab-contractor");
+      select.innerHTML = `<option value="">Выберите контрагента</option>` +
+        options.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+      syncCabinetFields();
+    }
+
+    function openCabinetModal() {
+      if (!isAdmin()) return;
+      state.cabinetRole = "user";
+      document.getElementById("cabinet-form").reset();
+      document.getElementById("cabinet-error").classList.remove("show");
+      fillCabinetModal();
+      document.getElementById("cabinet-overlay").classList.add("open");
+      document.getElementById("field-cab-login").focus();
+    }
+
+    function closeCabinetModal() {
+      document.getElementById("cabinet-overlay").classList.remove("open");
+    }
+
+    function submitCabinet(event) {
+      event.preventDefault();
+      if (!isAdmin()) return;
+      const error = document.getElementById("cabinet-error");
+      const login = document.getElementById("field-cab-login").value.trim();
+      const password = document.getElementById("field-cab-password").value;
+      const displayName = document.getElementById("field-cab-name").value.trim();
+      const contractorName = document.getElementById("field-cab-contractor").value;
+      if (!/^[a-zA-Z0-9._-]{2,40}$/.test(login)) {
+        error.textContent = "Логин: латиница, цифры, точка, _ или - (от 2 символов)";
+        error.classList.add("show");
+        return;
+      }
+      if (login === ADMIN_LOGIN) {
+        error.textContent = "Логин admin занят";
+        error.classList.add("show");
+        return;
+      }
+      if (!password || password.length < 4) {
+        error.textContent = "Пароль не короче 4 символов";
+        error.classList.add("show");
+        return;
+      }
+      if ((db.cabinets || []).some((c) => c.login === login) && !(db.deletedCabinetLogins || []).includes(login)) {
+        error.textContent = "Такой логин уже есть";
+        error.classList.add("show");
+        return;
+      }
+      const cab = {
+        login,
+        password,
+        role: state.cabinetRole === "debtor" ? "debtor" : "user",
+        displayName: displayName || login
+      };
+      if (cab.role === "debtor") {
+        if (!contractorName || !db.contractors[contractorName]) {
+          error.textContent = "Выберите контрагента из списка";
+          error.classList.add("show");
+          return;
+        }
+        if (takenDebtorContractors().has(contractorName)) {
+          error.textContent = "У этого контрагента уже есть кабинет";
+          error.classList.add("show");
+          return;
+        }
+        cab.contractorName = contractorName;
+        cab.displayName = contractorName;
+      } else {
+        ensureUserBook(db, login);
+      }
+      db.deletedCabinetLogins = (db.deletedCabinetLogins || []).filter((n) => n !== login);
+      db.cabinets = (db.cabinets || []).filter((c) => c.login !== login);
+      db.cabinets.push(cab);
+      saveData(db);
+      document.getElementById("cabinet-form").reset();
+      state.cabinetRole = "user";
+      document.getElementById("cabinet-error").classList.remove("show");
+      fillCabinetModal();
+      showToast(cab.role === "debtor"
+        ? "Кабинет должника создан: " + contractorName + " увидит карточку «" + ownerName() + "»"
+        : "Кабинет пользователя создан");
     }
 
     function closeOverlays() {
       closeRecordModal();
       closeContractorModal();
+      closeCabinetModal();
       closeSyncModal();
       closeSortAssign();
       closePayEdit();
@@ -3634,6 +4336,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("side-in").addEventListener("click", () => setLoanSide("in"));
     document.getElementById("contractor-form").addEventListener("submit", submitContractor);
     document.getElementById("contractor-cancel").addEventListener("click", closeContractorModal);
+    document.getElementById("cabinet-form").addEventListener("submit", submitCabinet);
+    document.getElementById("cabinet-cancel").addEventListener("click", closeCabinetModal);
+    document.getElementById("cab-role-user").addEventListener("click", () => {
+      state.cabinetRole = "user";
+      syncCabinetFields();
+    });
+    document.getElementById("cab-role-debtor").addEventListener("click", () => {
+      state.cabinetRole = "debtor";
+      syncCabinetFields();
+    });
+    document.getElementById("cabinet-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "cabinet-overlay") closeCabinetModal();
+    });
     document.getElementById("sync-form").addEventListener("submit", submitSync);
     document.getElementById("sync-cancel").addEventListener("click", closeSyncModal);
     document.getElementById("sync-overlay").addEventListener("click", (e) => {
