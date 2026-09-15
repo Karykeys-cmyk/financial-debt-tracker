@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="46" />
+  <meta name="app-build" content="47" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=46" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=46" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=46" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=46" />
+  <link rel="manifest" href="manifest.webmanifest?v=47" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=47" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=47" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=47" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -898,6 +898,14 @@
       margin-bottom: 0;
     }
 
+    .record-card .card-footer {
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
     .overlay {
       position: fixed;
       inset: 0;
@@ -1143,7 +1151,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=46" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=47" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1367,7 +1375,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "46";
+    const APP_BUILD = "47";
     const KEPT_PAYMENTS = {
       "Даня": [
         {
@@ -2408,7 +2416,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${payCount(r) ? `<span class="cell-extra">${payCount(r)} ${payCount(r) === 1 ? "выплата" : "выплаты"}</span>` : ""}
           </td>
           <td>${formatMoney(r.amount)}</td>
-          <td>${formatMoney(paymentSum(r))}</td>
           <td class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</td>
           <td class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</td>
           <td class="muted">${r.category === "Деньги в долг" ? (isBorrowed(r) ? "потери " : "") + formatMoney(r.profit) : "—"}</td>
@@ -2423,16 +2430,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </tr>
       `).join("");
 
-      const cards = rows.map((r) => `
+      const cards = rows.map((r) => {
+        const extra = r.category === "Деньги в долг"
+          ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit)
+          : [r.month, r.invoiceNumber ? "№ " + r.invoiceNumber : "", r.legalEntity].filter(Boolean).join(" · ");
+        return `
         <div class="record-card ${rowClass(r)}">
           <div class="row"><strong>${formatDate(r.date)}</strong><span class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
           <div class="row"><span>Остаток</span><strong class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</strong></div>
-          <div class="row muted"><span>Выплачено ${formatMoney(paymentSum(r))}</span><span>${r.category === "Деньги в долг" ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit) : (r.month || [r.invoiceNumber ? "№ " + r.invoiceNumber : "", r.legalEntity].filter(Boolean).join(" · ") || "—")}</span></div>
+          ${extra ? `<div class="row muted"><span>${escapeHtml(extra)}</span></div>` : ""}
           ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : (isBorrowed(r) ? `<div class="row muted"><span>без срока возврата</span></div>` : "")}
           ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
-          <div class="row muted">
-            <span></span>
+          <div class="row card-footer">
             <span class="actions">
               ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>`}
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Открыть долг">✏️</button>
@@ -2440,7 +2450,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             </span>
           </div>
         </div>
-      `).join("");
+      `;
+      }).join("");
 
       const tabRecords = currentRecords().filter((r) => {
         if (r.type === "Кредит") return false;
@@ -2467,7 +2478,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 <th>Категория</th>
                 <th>Подкатегория</th>
                 <th>Сумма</th>
-                <th>Оплачено</th>
                 <th>Остаток</th>
                 <th>Статус</th>
                 <th>Прибыль</th>
