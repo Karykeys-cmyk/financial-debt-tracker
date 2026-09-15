@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="49" />
+  <meta name="app-build" content="50" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=49" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=49" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=49" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=49" />
+  <link rel="manifest" href="manifest.webmanifest?v=50" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=50" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=50" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=50" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1151,7 +1151,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=49" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=50" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1375,7 +1375,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "49";
+    const APP_BUILD = "50";
     const DEFAULT_SYNC_URL = "https://sqsnhapkgtdjjkiexfrn.supabase.co";
     const DEFAULT_SYNC_KEY = "sb_publishable_2wQo7nf5W4eBQmiPorV9Kg_u-gjFYb-";
     const SYNC_SQL = `create table if not exists public.finance_state (
@@ -1909,6 +1909,18 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return n.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + " ₽";
     }
 
+    function dateFromPeriod(monthName, year) {
+      const idx = MONTHS.indexOf(monthName);
+      const m = idx >= 0 ? idx + 1 : (new Date().getMonth() + 1);
+      const y = Number(year) || new Date().getFullYear();
+      return y + "-" + String(m).padStart(2, "0") + "-01";
+    }
+
+    function recordDateLabel(r) {
+      if (r && r.category === "Аренда помещения" && r.month) return r.month;
+      return formatDate(r?.date || r?.issueDate);
+    }
+
     function formatDate(iso) {
       if (!iso) return "—";
       const [y, m, d] = iso.split("-");
@@ -2377,7 +2389,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const payCount = (r) => (r.payments || []).length;
       const tableRows = rows.map((r) => `
         <tr class="${rowClass(r)}">
-          <td>${formatDate(r.date)}</td>
+          <td>${escapeHtml(recordDateLabel(r))}</td>
           <td>${escapeHtml(r.category)}</td>
           <td>
             ${escapeHtml(r.subCategory || "—")}
@@ -2406,10 +2418,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const cards = rows.map((r) => {
         const extra = r.category === "Деньги в долг"
           ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit)
-          : [r.month, r.invoiceNumber ? "№ " + r.invoiceNumber : "", r.legalEntity].filter(Boolean).join(" · ");
+          : [r.category === "Аренда помещения" ? "" : r.month, r.invoiceNumber ? "№ " + r.invoiceNumber : "", r.legalEntity].filter(Boolean).join(" · ");
         return `
         <div class="record-card ${rowClass(r)}">
-          <div class="row"><strong>${formatDate(r.date)}</strong><span class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
+          <div class="row"><strong>${escapeHtml(recordDateLabel(r))}</strong><span class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
           <div class="row"><span>Остаток</span><strong class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</strong></div>
           ${extra ? `<div class="row muted"><span>${escapeHtml(extra)}</span></div>` : ""}
@@ -2749,7 +2761,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (r.invoiceNumber) parts.push("№ " + r.invoiceNumber);
       if (r.legalEntity) parts.push(r.legalEntity);
       if (r.month) parts.push(r.month);
-      parts.push(formatDate(r.date || r.issueDate));
+      else parts.push(formatDate(r.date || r.issueDate));
       parts.push(formatMoney(r.amount));
       parts.push(isFullyPaid(r) ? "погашен" : "остаток " + formatMoney(Math.max(0, remainingOf(r))));
       return parts.join(" · ");
@@ -2883,7 +2895,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("subcategory-field").classList.add("hidden");
       document.getElementById("amount-label").textContent = isRepay ? "Сумма выплаты" : "Сумма";
       document.getElementById("loanside-field").classList.toggle("hidden", isRepay || !isDebt);
-      document.getElementById("date-field").classList.toggle("hidden", isDebtIssue);
+      document.getElementById("date-field").classList.toggle("hidden", isDebtIssue || (!isRepay && category === "Аренда помещения"));
       document.getElementById("date-label").textContent = isRepay
         ? "Дата выплаты"
         : (isInvoice ? "Дата счета" : "Дата");
@@ -3107,12 +3119,22 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const isDebt = category === "Деньги в долг";
       const isInvoice = category === "Счета";
       const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
+      const isRentalRoom = category === "Аренда помещения";
       const borrowed = isDebt && state.loanSide === "in";
       const issueDate = document.getElementById("field-issue").value || null;
       const returnDate = document.getElementById("field-return").value || null;
-      const date = isDebt ? issueDate : document.getElementById("field-date").value;
+      const monthName = document.getElementById("field-month").value;
+      const year = Number(document.getElementById("field-year").value);
+      const date = isDebt
+        ? issueDate
+        : (isRentalRoom ? dateFromPeriod(monthName, year) : document.getElementById("field-date").value);
       if (!document.getElementById("field-amount").value || Number.isNaN(amount) || amount <= 0) {
         error.textContent = "Укажите сумму";
+        error.classList.add("show");
+        return;
+      }
+      if (isPeriod && (!monthName || !year)) {
+        error.textContent = "Укажите месяц и год";
         error.classList.add("show");
         return;
       }
@@ -3161,8 +3183,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
 
       const subCategory = category === "Аренда помещения" ? document.getElementById("field-subcategory").value : null;
-      const monthName = document.getElementById("field-month").value;
-      const year = Number(document.getElementById("field-year").value);
       const interestRate = Number(document.getElementById("field-rate").value) || 0;
       const existing = state.editingId ? currentRecords().find((r) => r.id === state.editingId) : null;
 
