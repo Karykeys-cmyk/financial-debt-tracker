@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="41" />
+  <meta name="app-build" content="42" />
   <title>Финансовый учёт</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=41" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=41" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=41" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=41" />
+  <link rel="manifest" href="manifest.webmanifest?v=42" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=42" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=42" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=42" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1261,7 +1261,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "41";
+    const APP_BUILD = "42";
     const KEPT_PAYMENTS = {
       "Даня": [
         {
@@ -1473,11 +1473,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           d.payments = [];
         });
         contractor.autoPaymentsShelved = true;
+      } else {
+        const assignedIds = new Set();
+        debts.forEach((d) => {
+          (d.payments || []).forEach((p) => { if (p && p.id) assignedIds.add(p.id); });
+        });
+        assignedIds.forEach((id) => unsortedMap.delete(id));
       }
-      const unsortedIds = new Set([...unsortedMap.keys()]);
-      debts.forEach((d) => {
-        d.payments = (d.payments || []).filter((p) => p && p.id && !unsortedIds.has(p.id) && !deletedPays.has(p.id));
-      });
       const seenPay = new Set();
       debts.forEach((d) => {
         d.payments = (d.payments || []).filter((p) => {
@@ -1568,7 +1570,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function saveData(data, options) {
-      data.updatedAt = Date.now();
+      if (!options || !options.skipRemote) data.updatedAt = Date.now();
       if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
@@ -1642,6 +1644,16 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return ids;
     }
 
+    function paymentOwnerMap(contractor) {
+      const map = new Map();
+      (contractor?.records || []).forEach((r) => {
+        (r.payments || []).forEach((p) => {
+          if (p && p.id) map.set(p.id, r.id);
+        });
+      });
+      return map;
+    }
+
     function mergeFinanceData(local, remote) {
       const out = defaultData();
       const localTs = Number(local.updatedAt) || 0;
@@ -1680,40 +1692,29 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           });
           map.set(incoming.id, { ...incoming, payments: [...pmap.values()] });
         });
-        const localAssign = new Map();
-        if (local.contractors?.[name]?.autoPaymentsShelved) {
-          (local.contractors[name].records || []).forEach((r) => {
-            (r.payments || []).forEach((p) => { if (p && p.id) localAssign.set(p.id, r.id); });
+        const newerC = newer.contractors?.[name] || {};
+        const olderC = older.contractors?.[name] || {};
+        const assign = paymentOwnerMap(olderC);
+        paymentOwnerMap(newerC).forEach((debtId, payId) => assign.set(payId, debtId));
+        map.forEach((rec) => {
+          rec.payments = (rec.payments || []).filter((p) => {
+            if (!p || !p.id || deletedPays.has(p.id)) return false;
+            const owner = assign.get(p.id);
+            return !owner || owner === rec.id;
           });
-        }
-        if (localAssign.size) {
-          map.forEach((rec) => {
-            rec.payments = (rec.payments || []).filter((p) => {
-              const owner = localAssign.get(p.id);
-              return !owner || owner === rec.id;
-            });
-          });
-        }
-        const localUnsortedIds = new Set(
-          (local.contractors?.[name]?.unsortedPayments || []).map((p) => p && p.id).filter(Boolean)
-        );
-        if (localUnsortedIds.size) {
-          map.forEach((rec) => {
-            rec.payments = (rec.payments || []).filter((p) => !localUnsortedIds.has(p.id));
-          });
-        }
+        });
         out.contractors[name] = {
           records: [...map.values()],
           unsortedPayments: (() => {
             const umap = new Map();
-            const deletedPaySet = deletedPays;
-            [...(remote.contractors?.[name]?.unsortedPayments || []), ...(local.contractors?.[name]?.unsortedPayments || [])].forEach((p) => {
+            [...(newerC.unsortedPayments || []), ...(olderC.unsortedPayments || [])].forEach((p) => {
               const item = normalizePayment(p);
-              if (item && !deletedPaySet.has(item.id)) umap.set(item.id, item);
+              if (!item || deletedPays.has(item.id) || assign.has(item.id)) return;
+              if (!umap.has(item.id)) umap.set(item.id, item);
             });
             return [...umap.values()];
           })(),
-          autoPaymentsShelved: Boolean(remote.contractors?.[name]?.autoPaymentsShelved || local.contractors?.[name]?.autoPaymentsShelved)
+          autoPaymentsShelved: Boolean(newerC.autoPaymentsShelved || olderC.autoPaymentsShelved)
         };
       });
       if (!deletedNames.has("Даня") && !out.contractors["Даня"]) out.contractors["Даня"] = { records: [] };
@@ -1779,7 +1780,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       try {
         const remote = await fetchRemote();
         if (remote && remote.payload) {
-          db = mergeFinanceData(db, remote.payload);
+          const payload = remote.payload;
+          const serverTs = Date.parse(remote.updated_at);
+          if (Number.isFinite(serverTs) && serverTs > (Number(payload.updatedAt) || 0)) {
+            payload.updatedAt = serverTs;
+          }
+          db = mergeFinanceData(db, payload);
           saveData(db, { skipRemote: true });
           render();
         }
