@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="45" />
+  <meta name="app-build" content="46" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=45" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=45" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=45" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=45" />
+  <link rel="manifest" href="manifest.webmanifest?v=46" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=46" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=46" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=46" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -89,40 +89,57 @@
       position: sticky;
       top: 0;
       z-index: 8;
-      background: linear-gradient(180deg, #ffffff 0%, #ffffff 74%, #f4f8ff 88%, rgba(10, 22, 40, 0) 100%);
-      padding: max(10px, env(safe-area-inset-top)) 18px 44px;
     }
 
     .brand-bar-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 12px;
       max-width: 1560px;
       margin: 0 auto;
-      min-height: 88px;
+      padding: max(4px, env(safe-area-inset-top)) 14px 4px;
+      min-height: 0;
+    }
+
+    .brand-bar-plate {
+      background: linear-gradient(180deg, #f4f5f8 0%, #e4e6eb 48%, #cfd3da 100%);
+      border-bottom: 1px solid #7d8593;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.92),
+        inset 0 -1px 0 rgba(60, 70, 90, 0.12);
+    }
+
+    .brand-bar::after {
+      content: "";
+      display: block;
+      height: 16px;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.22) 28%, rgba(0, 0, 0, 0.07) 58%, rgba(0, 0, 0, 0) 100%);
     }
 
     .brand-logo {
       display: block;
-      height: 108px;
+      height: 72px;
       width: auto;
-      max-width: min(420px, calc(100% - 64px));
+      max-width: min(280px, calc(100% - 80px));
       object-fit: contain;
       object-position: left center;
     }
 
     .sync-orb {
       flex-shrink: 0;
-      width: 42px;
-      height: 42px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
       display: grid;
       place-items: center;
-      color: #7b8ea3;
-      background: #ffffff;
-      border: 1px solid rgba(10, 22, 40, 0.1);
-      box-shadow: 0 4px 14px rgba(10, 22, 40, 0.08);
+      color: #5d6778;
+      background: linear-gradient(180deg, #ffffff 0%, #e8eaef 100%);
+      border: 1px solid #9aa3b2;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        0 3px 8px rgba(10, 22, 40, 0.22);
       transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.2s;
       -webkit-user-select: none;
       user-select: none;
@@ -130,8 +147,9 @@
     }
 
     .sync-orb svg {
-      width: 22px;
-      height: 22px;
+      width: 32px;
+      height: 32px;
+      display: block;
     }
 
     .sync-orb:hover {
@@ -139,15 +157,15 @@
     }
 
     .sync-orb.ok {
-      color: #12b76a;
-      border-color: rgba(18, 183, 106, 0.35);
-      background: #f3fff8;
+      color: #0f9f5c;
+      border-color: #7dcea0;
+      background: linear-gradient(180deg, #f4fff8 0%, #d9f5e4 100%);
     }
 
     .sync-orb.busy {
-      color: #2f6feb;
-      border-color: rgba(47, 111, 235, 0.28);
-      background: #f4f8ff;
+      color: #2b6be8;
+      border-color: #8fb0ee;
+      background: linear-gradient(180deg, #f5f8ff 0%, #dce6fb 100%);
     }
 
     .sync-orb.busy svg {
@@ -155,9 +173,9 @@
     }
 
     .sync-orb.error {
-      color: #e5484d;
-      border-color: rgba(229, 72, 77, 0.35);
-      background: #fff6f6;
+      color: #d63b40;
+      border-color: #e89a9d;
+      background: linear-gradient(180deg, #fff7f7 0%, #f8d9da 100%);
     }
 
     @keyframes sync-spin {
@@ -1111,10 +1129,10 @@
 
     @media (max-width: 760px) {
       .app { padding: 6px 14px 36px; }
-      .brand-bar { padding: max(8px, env(safe-area-inset-top)) 12px 36px; }
-      .brand-logo { height: 78px; }
-      .sync-orb { width: 38px; height: 38px; }
-      .sync-orb svg { width: 20px; height: 20px; }
+      .brand-bar-inner { padding: max(3px, env(safe-area-inset-top)) 10px 3px; }
+      .brand-logo { height: 56px; }
+      .sync-orb { width: 50px; height: 50px; }
+      .sync-orb svg { width: 28px; height: 28px; }
       .desktop-table { display: none; }
       .mobile-list { display: flex; }
       .table-panel { overflow: visible; }
@@ -1123,14 +1141,18 @@
 </head>
 <body>
   <header class="brand-bar">
-    <div class="brand-bar-inner">
-      <img class="brand-logo" src="icons/logo.png?v=45" alt="База Баляевой" />
-      <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20.5 12a8.5 8.5 0 1 1-2.5-6.02"/>
-          <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20.5 3.8V12h-8.2"/>
-        </svg>
-      </button>
+    <div class="brand-bar-plate">
+      <div class="brand-bar-inner">
+        <img class="brand-logo" src="icons/logo.png?v=46" alt="База Баляевой" />
+        <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
+            <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M21 3.2V8.2h-5"/>
+            <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M20.8 12a8.8 8.8 0 0 1-8.8 8.8 9.5 9.5 0 0 1-6.6-2.7L3 15.8"/>
+            <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3 20.8V15.8h5"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </header>
   <div class="app" id="app"></div>
@@ -1345,7 +1367,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "45";
+    const APP_BUILD = "46";
     const KEPT_PAYMENTS = {
       "Даня": [
         {

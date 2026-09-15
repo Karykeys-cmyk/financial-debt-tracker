@@ -4,7 +4,7 @@
 
 ## Открыть приложение
 
-[https://karykeys-cmyk.github.io/financial-debt-tracker/?v=45](https://karykeys-cmyk.github.io/financial-debt-tracker/?v=45)
+[https://karykeys-cmyk.github.io/financial-debt-tracker/?v=46](https://karykeys-cmyk.github.io/financial-debt-tracker/?v=46)
 
 Если с телефона видите старые данные, откройте именно эту ссылку в Safari или Chrome, не с иконки на экране. Новый адрес обходит кэш.
 
