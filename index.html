@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="39" />
+  <meta name="app-build" content="40" />
   <title>Финансовый учёт</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=39" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=39" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=39" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=39" />
+  <link rel="manifest" href="manifest.webmanifest?v=40" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=40" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=40" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=40" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1193,6 +1193,33 @@
     </form>
   </div>
 
+  <div class="overlay" id="pay-edit-overlay" role="dialog" aria-modal="true">
+    <form class="modal" id="pay-edit-form" novalidate>
+      <h2>Изменить выплату</h2>
+      <div class="field">
+        <label for="edit-pay-date">Дата выплаты</label>
+        <input id="edit-pay-date" type="date" />
+      </div>
+      <div class="field">
+        <label for="edit-pay-amount">Сумма выплаты</label>
+        <input id="edit-pay-amount" type="number" min="0.01" step="0.01" placeholder="0" />
+      </div>
+      <div class="field">
+        <label for="edit-pay-method">Способ оплаты</label>
+        <select id="edit-pay-method"></select>
+      </div>
+      <div class="field">
+        <label for="edit-pay-comment">Комментарий</label>
+        <input id="edit-pay-comment" type="text" placeholder="Необязательно" />
+      </div>
+      <div class="error" id="pay-edit-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="pay-edit-cancel">Отмена</button>
+        <button type="submit" class="btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+
   <div class="overlay" id="confirm-overlay" role="dialog" aria-modal="true">
     <div class="modal">
       <h2 id="confirm-title">Удалить запись?</h2>
@@ -1234,7 +1261,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "39";
+    const APP_BUILD = "40";
     const KEPT_PAYMENTS = {
       "Даня": [
         {
@@ -1302,6 +1329,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       workTab: "debt",
       repayTargetId: null,
       sortPaymentId: null,
+      editPayment: null,
       pendingDelete: null
     };
 
@@ -2310,6 +2338,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               <td>
                 <div class="actions">
                   <button class="text-btn" data-sort-assign="${escapeHtml(p.id)}">К долгу</button>
+                  <button class="icon-btn" data-sort-edit="${escapeHtml(p.id)}" title="Изменить выплату" aria-label="Изменить выплату">✏️</button>
                   <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}" title="Удалить выплату">🗑️</button>
                 </div>
               </td>
@@ -2323,6 +2352,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 <span></span>
                 <span class="actions">
                   <button class="text-btn" data-sort-assign="${escapeHtml(p.id)}">К долгу</button>
+                  <button class="icon-btn" data-sort-edit="${escapeHtml(p.id)}" aria-label="Изменить выплату">✏️</button>
                   <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}">🗑️</button>
                 </span>
               </div>
@@ -2504,6 +2534,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.querySelectorAll("[data-sort-assign]").forEach((btn) => {
         btn.addEventListener("click", () => openSortAssign(btn.getAttribute("data-sort-assign")));
       });
+      document.querySelectorAll("[data-sort-edit]").forEach((btn) => {
+        btn.addEventListener("click", () => openPayEdit({ source: "unsorted", id: btn.getAttribute("data-sort-edit") }));
+      });
       document.querySelectorAll("[data-sort-delete]").forEach((btn) => {
         btn.addEventListener("click", () => askDeleteUnsorted(btn.getAttribute("data-sort-delete")));
       });
@@ -2591,10 +2624,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div>${formatDate(p.date)} · ${formatMoney(p.amount)}</div>
             <div class="meta">${escapeHtml(p.paymentMethod || "—")}${p.comment ? " · " + escapeHtml(p.comment) : ""}</div>
           </div>
-          <span></span>
+          <button type="button" class="icon-btn" data-edit-pay="${escapeHtml(p.id)}" title="Изменить выплату" aria-label="Изменить выплату">✏️</button>
           <button type="button" class="icon-btn danger" data-delete-pay="${escapeHtml(p.id)}" title="Снять с долга" aria-label="Снять выплату с долга">🗑️</button>
         </div>
       `).join("") : `<div class="empty" style="padding:10px 0;">Выплат пока нет</div>`;
+      list.querySelectorAll("[data-edit-pay]").forEach((btn) => {
+        btn.addEventListener("click", () => openPayEdit({ source: "debt", debtId: state.editingId, id: btn.getAttribute("data-edit-pay") }));
+      });
       list.querySelectorAll("[data-delete-pay]").forEach((btn) => {
         btn.addEventListener("click", () => askDeletePayment(state.editingId, btn.getAttribute("data-delete-pay")));
       });
@@ -3057,6 +3093,117 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       state.sortPaymentId = null;
     }
 
+    function findEditablePayment(spec) {
+      if (!spec || !spec.id) return null;
+      const contractor = db.contractors[state.contractor];
+      if (!contractor) return null;
+      if (spec.source === "unsorted") {
+        const pay = (contractor.unsortedPayments || []).find((p) => p.id === spec.id);
+        return pay ? { pay, source: "unsorted" } : null;
+      }
+      const rec = (contractor.records || []).find((r) => r.id === spec.debtId);
+      const pay = (rec?.payments || []).find((p) => p.id === spec.id);
+      return pay && rec ? { pay, rec, source: "debt" } : null;
+    }
+
+    function openPayEdit(spec) {
+      const found = findEditablePayment(spec);
+      if (!found) return;
+      state.editPayment = spec;
+      document.getElementById("pay-edit-error").classList.remove("show");
+      document.getElementById("edit-pay-date").value = found.pay.date || todayIso();
+      document.getElementById("edit-pay-amount").value = found.pay.amount != null ? String(found.pay.amount) : "";
+      document.getElementById("edit-pay-comment").value = found.pay.comment || "";
+      fillSelect(document.getElementById("edit-pay-method"), [
+        { value: "", label: "Выберите способ оплаты" },
+        ...PAYMENT_METHODS
+      ], found.pay.paymentMethod || "");
+      document.getElementById("pay-edit-overlay").classList.add("open");
+      document.getElementById("edit-pay-amount").focus();
+    }
+
+    function closePayEdit() {
+      document.getElementById("pay-edit-overlay").classList.remove("open");
+      state.editPayment = null;
+    }
+
+    function submitPayEdit(event) {
+      event.preventDefault();
+      const error = document.getElementById("pay-edit-error");
+      error.classList.remove("show");
+      const found = findEditablePayment(state.editPayment);
+      if (!found) {
+        error.textContent = "Выплату не удалось найти";
+        error.classList.add("show");
+        return;
+      }
+      const amount = Number(document.getElementById("edit-pay-amount").value);
+      const date = document.getElementById("edit-pay-date").value;
+      const paymentMethod = document.getElementById("edit-pay-method").value;
+      const comment = document.getElementById("edit-pay-comment").value.trim();
+      if (!document.getElementById("edit-pay-amount").value || Number.isNaN(amount) || amount <= 0) {
+        error.textContent = "Укажите сумму выплаты";
+        error.classList.add("show");
+        return;
+      }
+      if (!date) {
+        error.textContent = "Укажите дату выплаты";
+        error.classList.add("show");
+        return;
+      }
+      if (!paymentMethod) {
+        error.textContent = "Укажите способ оплаты";
+        error.classList.add("show");
+        return;
+      }
+      const rounded = Math.round(amount * 100) / 100;
+      found.pay.date = date;
+      found.pay.paymentMethod = paymentMethod;
+      found.pay.comment = comment;
+      let leftover = 0;
+      if (found.source === "debt") {
+        const rec = found.rec;
+        const without = { ...rec, payments: (rec.payments || []).filter((p) => p.id !== found.pay.id) };
+        const due = Math.max(0, remainingOf(without));
+        const applied = due <= 0.009 ? 0 : Math.round(Math.min(rounded, due) * 100) / 100;
+        leftover = Math.round((rounded - applied) * 100) / 100;
+        if (applied <= 0.009) {
+          rec.payments = (rec.payments || []).filter((p) => p.id !== found.pay.id);
+          const contractor = db.contractors[state.contractor];
+          if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
+          contractor.unsortedPayments.unshift({
+            id: found.pay.id,
+            date,
+            amount: rounded,
+            paymentMethod,
+            comment
+          });
+        } else {
+          found.pay.amount = applied;
+          if (leftover > 0.009) {
+            const contractor = db.contractors[state.contractor];
+            if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
+            contractor.unsortedPayments.unshift({
+              id: uid(),
+              date,
+              amount: leftover,
+              paymentMethod,
+              comment
+            });
+          }
+        }
+      } else {
+        found.pay.amount = rounded;
+      }
+      saveData(db);
+      closePayEdit();
+      render();
+      if (state.editingId) renderPaymentsPanel();
+      showToast(leftover > 0.009
+        ? "Выплата сохранена. Остаток " + formatMoney(leftover) + " ушёл во вкладку «Требует сортировки»"
+        : "Выплата сохранена");
+    }
+
     function submitSortAssign(event) {
       event.preventDefault();
       const error = document.getElementById("sort-error");
@@ -3222,6 +3369,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       closeContractorModal();
       closeSyncModal();
       closeSortAssign();
+      closePayEdit();
       document.getElementById("confirm-overlay").classList.remove("open");
       state.pendingDelete = null;
     }
@@ -3262,6 +3410,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("sort-cancel").addEventListener("click", closeSortAssign);
     document.getElementById("sort-overlay").addEventListener("click", (e) => {
       if (e.target.id === "sort-overlay") closeSortAssign();
+    });
+    document.getElementById("pay-edit-form").addEventListener("submit", submitPayEdit);
+    document.getElementById("pay-edit-cancel").addEventListener("click", closePayEdit);
+    document.getElementById("pay-edit-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "pay-edit-overlay") closePayEdit();
     });
     document.getElementById("confirm-cancel").addEventListener("click", () => {
       document.getElementById("confirm-overlay").classList.remove("open");
