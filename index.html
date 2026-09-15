@@ -552,6 +552,30 @@
       color: var(--text);
     }
 
+    .tab.paid-tab {
+      border-color: rgba(94, 233, 163, 0.28);
+    }
+
+    .tab.paid-tab.active {
+      background: rgba(94, 233, 163, 0.16);
+      color: var(--saldo-plus);
+      border-color: rgba(94, 233, 163, 0.45);
+    }
+
+    .tab-count {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .tab.paid-tab.active .tab-count {
+      background: rgba(94, 233, 163, 0.2);
+    }
+
     .table-panel {
       background: var(--card);
       border-radius: 16px;
@@ -1203,6 +1227,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       editingId: null,
       recordType: "Дебет",
       loanSide: "out",
+      workTab: "debt",
       repayTargetId: null,
       pendingDelete: null
     };
@@ -1715,11 +1740,45 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return "zero";
     }
 
+    function isPaidTab() {
+      return state.tab === "paid";
+    }
+
+    function workTabId() {
+      if (!isPaidTab()) return state.tab;
+      return state.workTab || (contractorConfig(state.contractor).hasRental ? "rental" : "debt");
+    }
+
     function currentCategory() {
-      if (state.tab === "dtf") return "Аренда ДТФ";
-      if (state.tab === "invoices") return "Счета";
-      if (state.tab === "debt") return "Деньги в долг";
+      const tab = workTabId();
+      if (tab === "dtf") return "Аренда ДТФ";
+      if (tab === "invoices") return "Счета";
+      if (tab === "debt") return "Деньги в долг";
       return "Аренда помещения";
+    }
+
+    function recordMatchesSearch(r, q) {
+      if (!q) return true;
+      const payText = (r.payments || []).map((p) => [
+        p.date, formatDate(p.date), p.amount, formatMoney(p.amount), p.paymentMethod, p.comment
+      ].join(" ")).join(" ");
+      const hay = [
+        r.date, r.issueDate, r.returnDate,
+        formatDate(r.date), formatDate(r.issueDate), formatDate(r.returnDate),
+        r.category, r.subCategory, r.type, recordTypeLabel(r),
+        r.comment, r.invoiceNumber, r.month,
+        r.amount, formatMoney(r.amount), formatMoney(r.profit),
+        formatMoney(remainingOf(r)), formatMoney(paymentSum(r)),
+        "остаток", "погашен", "выплата",
+        isBorrowed(r) ? "взяли наш долг без срока" : "",
+        r.loanSide === "out" ? "выдали" : "",
+        payText
+      ].join(" ").toLowerCase();
+      return hay.includes(q);
+    }
+
+    function paidCount(name) {
+      return debtRecords(name).filter(isFullyPaid).length;
     }
 
     function availableCategories(name) {
@@ -1732,44 +1791,36 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return cats;
     }
 
+    function matchesWorkCategory(r) {
+      const tab = workTabId();
+      if (tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
+      return r.category === currentCategory();
+    }
+
     function visibleRecords() {
       const q = String(state.recordSearch || "").trim().toLowerCase();
+      const paidTab = isPaidTab();
       return currentRecords()
         .filter((r) => r.type !== "Кредит")
+        .filter((r) => paidTab ? isFullyPaid(r) : !isFullyPaid(r))
         .filter((r) => {
-          if (!q) {
-            if (state.tab === "rental") {
-              if (!(r.category === "Аренда помещения" && r.subCategory === state.subTab)) return false;
-            } else if (r.category !== currentCategory()) {
-              return false;
-            }
-          }
+          if (!q && !paidTab && !matchesWorkCategory(r)) return false;
           if (state.paymentFilter !== "Все") {
             const methods = (r.payments || []).map((p) => p.paymentMethod || "");
             if (!methods.includes(state.paymentFilter)) return false;
           }
           if (!inSelectedPeriod(r)) return false;
-          if (q) {
-            const payText = (r.payments || []).map((p) => [
-              p.date, formatDate(p.date), p.amount, formatMoney(p.amount), p.paymentMethod, p.comment
-            ].join(" ")).join(" ");
-            const hay = [
-              r.date, r.issueDate, r.returnDate,
-              formatDate(r.date), formatDate(r.issueDate), formatDate(r.returnDate),
-              r.category, r.subCategory, r.type, recordTypeLabel(r),
-              r.comment, r.invoiceNumber, r.month,
-              r.amount, formatMoney(r.amount), formatMoney(r.profit),
-              formatMoney(remainingOf(r)), formatMoney(paymentSum(r)),
-              "остаток", "погашен", "выплата",
-              isBorrowed(r) ? "взяли наш долг без срока" : "",
-              r.loanSide === "out" ? "выдали" : "",
-              payText
-            ].join(" ").toLowerCase();
-            if (!hay.includes(q)) return false;
-          }
+          if (!recordMatchesSearch(r, q)) return false;
           return true;
         })
         .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.id || "").localeCompare(a.id || ""));
+    }
+
+    function hiddenPaidSearchHint() {
+      if (isPaidTab()) return false;
+      const q = String(state.recordSearch || "").trim().toLowerCase();
+      if (!q) return false;
+      return debtRecords(state.contractor).some((r) => isFullyPaid(r) && recordMatchesSearch(r, q) && inSelectedPeriod(r));
     }
 
     function showToast(text) {
@@ -1889,6 +1940,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const split = cfg.hasRental ? debitBreakdown(name, true) : null;
       const rows = visibleRecords();
 
+      const closedCount = paidCount(name);
       const tabItems = [];
       if (cfg.hasRental) tabItems.push(["rental", "Аренда помещения"]);
       if (cfg.hasDtf) tabItems.push(["dtf", "Аренда ДТФ"]);
@@ -1899,6 +1951,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           ${tabItems.map(([id, label]) => (
             `<button class="tab ${state.tab === id ? "active" : ""}" data-tab="${id}">${label}</button>`
           )).join("")}
+          <button class="tab paid-tab ${isPaidTab() ? "active" : ""}" data-tab="paid">Выплачено<span class="tab-count">${closedCount}</span></button>
         </div>
       `;
 
@@ -1941,7 +1994,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <td class="wrap muted">${escapeHtml(r.comment || "—")}</td>
           <td>
             <div class="actions">
-              <button class="text-btn" data-pay="${escapeHtml(r.id)}" title="Внести выплату">Оплата</button>
+              ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}" title="Внести выплату">Оплата</button>`}
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Открыть долг" aria-label="Открыть долг">✏️</button>
               <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" title="Удалить" aria-label="Удалить">🗑️</button>
             </div>
@@ -1960,7 +2013,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <div class="row muted">
             <span></span>
             <span class="actions">
-              <button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>
+              ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>`}
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Открыть долг">✏️</button>
               <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>
             </span>
@@ -1970,13 +2023,17 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
       const tabRecords = currentRecords().filter((r) => {
         if (r.type === "Кредит") return false;
-        if (state.tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
-        return r.category === currentCategory();
+        if (isPaidTab()) return isFullyPaid(r);
+        if (isFullyPaid(r)) return false;
+        return matchesWorkCategory(r);
       });
-      let emptyText = "Записей пока нет";
+      let emptyText = isPaidTab() ? "Выплаченных долгов пока нет" : "Открытых долгов нет";
       if (!rows.length) {
-        if (String(state.recordSearch || "").trim()) emptyText = "Нет записей по запросу";
-        else if (tabRecords.length && state.paymentFilter !== "Все") emptyText = "Нет записей с таким способом оплаты";
+        if (String(state.recordSearch || "").trim()) {
+          emptyText = hiddenPaidSearchHint()
+            ? "Этот долг уже выплачен — откройте вкладку «Выплачено»"
+            : "Нет записей по запросу";
+        } else if (tabRecords.length && state.paymentFilter !== "Все") emptyText = "Нет записей с таким способом оплаты";
         else if (tabRecords.length) emptyText = "Нет записей за выбранный период";
       }
 
@@ -2006,7 +2063,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const paymentFilter = `
         <div class="table-toolbar">
           <div class="toolbar-left">
-            <input type="search" id="filter-search" placeholder="${escapeHtml(state.recordSearch.trim() ? "Поиск по всем записям" : "Поиск по записям")}" value="${escapeHtml(state.recordSearch)}" />
+            <input type="search" id="filter-search" placeholder="${escapeHtml(isPaidTab() ? "Поиск по выплаченным" : (state.recordSearch.trim() ? "Поиск по открытым долгам" : "Поиск по записям"))}" value="${escapeHtml(state.recordSearch)}" />
             <button type="button" class="collapse-btn" id="toggle-records">${state.recordsCollapsed ? "Показать записи" : "Свернуть записи"}</button>
           </div>
           <div class="toolbar-right">
@@ -2083,7 +2140,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ${tabs}
         ${subtabs}
         <div class="records-head">
-          <button class="add-record" id="add-record">➕ Добавить запись</button>
+          <button class="add-record" id="add-record">${isPaidTab() ? "➕ Внести выплату" : "➕ Добавить запись"}</button>
           ${paymentFilter}
         </div>
         <div class="table-panel ${state.recordsCollapsed ? "hidden" : ""}">${body}</div>
@@ -2100,7 +2157,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         state.contractor = null;
         render();
       });
-      document.getElementById("add-record")?.addEventListener("click", () => openRecordModal());
+      document.getElementById("add-record")?.addEventListener("click", () => {
+        if (isPaidTab()) openRecordModal(null, { repay: true });
+        else openRecordModal();
+      });
       document.getElementById("toggle-records")?.addEventListener("click", () => {
         state.recordsCollapsed = !state.recordsCollapsed;
         render();
@@ -2143,7 +2203,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
       document.querySelectorAll("[data-tab]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          state.tab = btn.getAttribute("data-tab");
+          const next = btn.getAttribute("data-tab");
+          if (next !== "paid") state.workTab = next;
+          state.tab = next;
           if (state.tab === "rental" && !RENTAL_SUBS.includes(state.subTab)) {
             state.subTab = "Коммуналка";
           }
@@ -2183,6 +2245,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       state.view = "profile";
       state.contractor = name;
       state.tab = cfg.hasRental ? "rental" : "debt";
+      state.workTab = state.tab;
       state.subTab = "Коммуналка";
       state.paymentFilter = "Все";
       state.recordSearch = "";
@@ -2217,21 +2280,17 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function fillDebtTarget(selectedId) {
       const el = document.getElementById("field-debt-target");
       const cat = currentCategory();
-      const recs = debtRecords(state.contractor).slice().sort((a, b) => {
-        const ap = isFullyPaid(a) ? 1 : 0;
-        const bp = isFullyPaid(b) ? 1 : 0;
-        if (ap !== bp) return ap - bp;
-        const ac = a.category === cat ? 0 : 1;
-        const bc = b.category === cat ? 0 : 1;
-        if (ac !== bc) return ac - bc;
-        return (b.date || b.issueDate || "").localeCompare(a.date || a.issueDate || "");
-      });
-      const open = recs.filter((r) => !isFullyPaid(r));
-      const closed = recs.filter((r) => isFullyPaid(r));
+      const recs = debtRecords(state.contractor)
+        .filter((r) => !isFullyPaid(r) || r.id === selectedId)
+        .slice()
+        .sort((a, b) => {
+          const ac = a.category === cat ? 0 : 1;
+          const bc = b.category === cat ? 0 : 1;
+          if (ac !== bc) return ac - bc;
+          return (b.date || b.issueDate || "").localeCompare(a.date || a.issueDate || "");
+        });
       let html = `<option value="">Выберите долг</option>`;
-      const option = (r) => `<option value="${escapeHtml(r.id)}" ${r.id === selectedId ? "selected" : ""}>${escapeHtml(debtLabel(r))}</option>`;
-      if (open.length) html += `<optgroup label="Открытые долги">${open.map(option).join("")}</optgroup>`;
-      if (closed.length) html += `<optgroup label="Погашенные">${closed.map(option).join("")}</optgroup>`;
+      html += recs.map((r) => `<option value="${escapeHtml(r.id)}" ${r.id === selectedId ? "selected" : ""}>${escapeHtml(debtLabel(r))}</option>`).join("");
       el.innerHTML = html;
     }
 
@@ -2267,11 +2326,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function addPaymentToDebt(debtId, payment) {
       const rec = currentRecords().find((r) => r.id === debtId);
-      if (!rec) return false;
+      if (!rec) return null;
       if (!Array.isArray(rec.payments)) rec.payments = [];
       rec.payments.push(payment);
       saveData(db);
-      return true;
+      return rec;
     }
 
     function syncRecordFields() {
@@ -2334,11 +2393,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("type-credit").classList.toggle("active", type === "Кредит");
       if (type === "Кредит") {
         if (!state.repayTargetId) {
-          const cat = currentCategory();
           const first = debtRecords(state.contractor).find((r) => {
             if (isFullyPaid(r)) return false;
-            if (state.tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
-            return r.category === cat;
+            const tab = workTabId();
+            if (tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
+            return r.category === currentCategory();
           }) || debtRecords(state.contractor).find((r) => !isFullyPaid(r));
           state.repayTargetId = first ? first.id : null;
         }
@@ -2474,21 +2533,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
-      const ok = addPaymentToDebt(debtId, {
+      const rec = addPaymentToDebt(debtId, {
         id: uid(),
         date,
         amount,
         paymentMethod,
         comment: document.getElementById("field-comment").value.trim()
       });
-      if (!ok) {
+      if (!rec) {
         error.textContent = "Не удалось найти выбранный долг";
         error.classList.add("show");
         return;
       }
       closeRecordModal();
       render();
-      showToast("Выплата внесена");
+      showToast(isFullyPaid(rec) ? "Долг погашен — смотрите во вкладке «Выплачено»" : "Выплата внесена");
     }
 
     function submitRecord(event) {
@@ -2589,25 +2648,27 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
-      const ok = addPaymentToDebt(state.editingId, {
+      const rec = addPaymentToDebt(state.editingId, {
         id: uid(),
         date,
         amount,
         paymentMethod,
         comment: document.getElementById("pay-comment").value.trim()
       });
-      if (!ok) {
+      if (!rec) {
         error.textContent = "Не удалось добавить выплату";
         error.classList.add("show");
         return;
       }
+      const closed = isFullyPaid(rec);
       document.getElementById("pay-amount").value = "";
       document.getElementById("pay-comment").value = "";
       document.getElementById("pay-date").value = todayIso();
       document.getElementById("pay-method").value = "";
+      if (closed) closeRecordModal();
       render();
-      renderPaymentsPanel();
-      showToast("Выплата внесена");
+      if (!closed && state.editingId) renderPaymentsPanel();
+      showToast(closed ? "Долг погашен — смотрите во вкладке «Выплачено»" : "Выплата внесена");
     }
 
     function askDelete(id) {
