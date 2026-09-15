@@ -1,9 +1,9 @@
 {
   "id": "./",
   "name": "Финансовый учёт",
-  "short_name": "Учёт",
+  "short_name": "База",
   "description": "Учёт долгов, выплат и контрагентов",
-  "start_url": "./?v=37",
+  "start_url": "./?v=38",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",

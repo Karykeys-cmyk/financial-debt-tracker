@@ -4,9 +4,11 @@
 
 ## Открыть приложение
 
-[https://karykeys-cmyk.github.io/financial-debt-tracker/?v=37](https://karykeys-cmyk.github.io/financial-debt-tracker/?v=37)
+[https://karykeys-cmyk.github.io/financial-debt-tracker/?v=38](https://karykeys-cmyk.github.io/financial-debt-tracker/?v=38)
 
 Если с телефона видите старые данные, откройте именно эту ссылку в Safari или Chrome, не с иконки на экране. Новый адрес обходит кэш.
+
+Иконка на экран «Домой» — логотип «База Баляевой». На iPhone: откройте ссылку в Safari → Поделиться → На экран «Домой». Если иконка уже стояла, удалите старую и добавьте заново, иначе телефон может держать прежнюю картинку.
 
 Один раз в репозитории на GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` → Folder: `/ (root)` → Save**. После этого ссылка выше открывает приложение.
 
