@@ -1750,9 +1750,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       setSyncStatus("ok", "Синхронизировано с облаком");
     }
 
+    function isLocalPreview() {
+      const host = location.hostname;
+      return host === "127.0.0.1" || host === "localhost";
+    }
+
     let pushTimer = null;
     function schedulePush() {
-      if (!getSyncConfig().key) return;
+      if (isLocalPreview() || !getSyncConfig().key) return;
       clearTimeout(pushTimer);
       pushTimer = setTimeout(() => {
         pushRemote().catch((err) => setSyncStatus("error", err.message || "Ошибка синхронизации"));
@@ -1760,6 +1765,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     async function syncNow() {
+      if (isLocalPreview()) {
+        setSyncStatus("off", "Локальный просмотр без облака");
+        return;
+      }
       const { key } = getSyncConfig();
       if (!key) {
         setSyncStatus("off", "Синхронизация не настроена");
