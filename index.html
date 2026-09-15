@@ -1951,7 +1951,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           ${tabItems.map(([id, label]) => (
             `<button class="tab ${state.tab === id ? "active" : ""}" data-tab="${id}">${label}</button>`
           )).join("")}
-          <button class="tab paid-tab ${isPaidTab() ? "active" : ""}" data-tab="paid">Выплачено<span class="tab-count">${closedCount}</span></button>
+          <button class="tab paid-tab ${isPaidTab() ? "active" : ""}" data-tab="paid">Выплачено <span class="tab-count">${closedCount}</span></button>
         </div>
       `;
 
