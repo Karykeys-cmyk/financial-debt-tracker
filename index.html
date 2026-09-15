@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="44" />
+  <meta name="app-build" content="45" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=44" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=44" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=44" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=44" />
+  <link rel="manifest" href="manifest.webmanifest?v=45" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=45" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=45" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=45" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -89,8 +89,8 @@
       position: sticky;
       top: 0;
       z-index: 8;
-      background: linear-gradient(180deg, #ffffff 0%, #ffffff 58%, #f3f8ff 78%, rgba(10, 22, 40, 0) 100%);
-      padding: max(8px, env(safe-area-inset-top)) 18px 34px;
+      background: linear-gradient(180deg, #ffffff 0%, #ffffff 74%, #f4f8ff 88%, rgba(10, 22, 40, 0) 100%);
+      padding: max(10px, env(safe-area-inset-top)) 18px 44px;
     }
 
     .brand-bar-inner {
@@ -100,14 +100,14 @@
       gap: 16px;
       max-width: 1560px;
       margin: 0 auto;
-      min-height: 58px;
+      min-height: 88px;
     }
 
     .brand-logo {
       display: block;
-      height: 56px;
+      height: 108px;
       width: auto;
-      max-width: min(280px, calc(100% - 64px));
+      max-width: min(420px, calc(100% - 64px));
       object-fit: contain;
       object-position: left center;
     }
@@ -1111,8 +1111,8 @@
 
     @media (max-width: 760px) {
       .app { padding: 6px 14px 36px; }
-      .brand-bar { padding: max(6px, env(safe-area-inset-top)) 12px 28px; }
-      .brand-logo { height: 46px; }
+      .brand-bar { padding: max(8px, env(safe-area-inset-top)) 12px 36px; }
+      .brand-logo { height: 78px; }
       .sync-orb { width: 38px; height: 38px; }
       .sync-orb svg { width: 20px; height: 20px; }
       .desktop-table { display: none; }
@@ -1124,7 +1124,7 @@
 <body>
   <header class="brand-bar">
     <div class="brand-bar-inner">
-      <img class="brand-logo" src="icons/logo.png?v=44" alt="База Баляевой" />
+      <img class="brand-logo" src="icons/logo.png?v=45" alt="База Баляевой" />
       <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20.5 12a8.5 8.5 0 1 1-2.5-6.02"/>
@@ -1345,7 +1345,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "44";
+    const APP_BUILD = "45";
     const KEPT_PAYMENTS = {
       "Даня": [
         {
