@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="56" />
+  <meta name="app-build" content="57" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=56" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=56" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=56" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=56" />
+  <link rel="manifest" href="manifest.webmanifest?v=57" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=57" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=57" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=57" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1272,7 +1272,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=56" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=57" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1541,7 +1541,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "56";
+    const APP_BUILD = "57";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -1811,8 +1811,24 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (drop.size) contractor.records = recs.filter((r) => !drop.has(r.id));
     }
 
+    function loanInterest(record) {
+      if (!record || record.category !== "Деньги в долг") return 0;
+      const rate = Number(record.interestRate != null ? record.interestRate : record.rate) || 0;
+      const amount = Number(record.amount) || 0;
+      const issue = record.issueDate || record.date;
+      if (rate && issue) {
+        const end = record.returnDate || todayIso();
+        return Math.round(calcProfit(amount, rate, issue, end) * 100) / 100;
+      }
+      return Math.round((Number(record.profit) || 0) * 100) / 100;
+    }
+
+    function recordDue(record) {
+      return Math.round(((Number(record.amount) || 0) + loanInterest(record)) * 100) / 100;
+    }
+
     function remainingOf(record) {
-      return Math.round(((Number(record.amount) || 0) - paymentSum(record)) * 100) / 100;
+      return Math.round((recordDue(record) - paymentSum(record)) * 100) / 100;
     }
 
     function isFullyPaid(record) {
@@ -2397,7 +2413,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       let credit = 0;
       records.forEach((r) => {
         if (isBorrowed(r)) return;
-        if (!usePeriod || inSelectedPeriod(r)) debit += Number(r.amount) || 0;
+        if (!usePeriod || inSelectedPeriod(r)) debit += recordDue(r);
         (r.payments || []).forEach((p) => {
           if (usePeriod && !inSelectedPeriod(p)) return;
           credit += Number(p.amount) || 0;
@@ -2410,7 +2426,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function debitBreakdown(name, usePeriod) {
       let records = debtRecords(name);
       if (usePeriod) records = records.filter(inSelectedPeriod);
-      const add = (pred) => records.reduce((sum, r) => pred(r) ? sum + (Number(r.amount) || 0) : sum, 0);
+      const add = (pred) => records.reduce((sum, r) => pred(r) ? sum + recordDue(r) : sum, 0);
       const rentOnly = add((r) => r.category === "Аренда помещения" && r.subCategory === "Аренда");
       const utilities = add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка");
       const dtf = add((r) => r.category === "Аренда ДТФ");
@@ -3418,8 +3434,17 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (r.month) parts.push(r.month);
       else parts.push(formatDate(r.date || r.issueDate));
       parts.push(formatMoney(r.amount));
+      const interest = loanInterest(r);
+      if (interest > 0.009) parts.push("проценты " + formatMoney(interest));
       parts.push(isFullyPaid(r) ? "погашен" : "остаток " + formatMoney(Math.max(0, remainingOf(r))));
       return parts.join(" · ");
+    }
+
+    function fillRepayAmount(rec) {
+      const el = document.getElementById("field-amount");
+      if (!el || !rec) return;
+      const left = remainingOf(rec);
+      if (left > 0.009) el.value = String(left);
     }
 
     function fillDebtTarget(selectedId) {
@@ -3605,10 +3630,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         }
         fillDebtTarget(state.repayTargetId);
         const rec = currentRecords().find((r) => r.id === state.repayTargetId);
-        if (rec) {
-          const left = remainingOf(rec);
-          if (left > 0.009) document.getElementById("field-amount").value = String(left);
-        }
+        fillRepayAmount(rec);
       }
       syncRecordFields();
     }
@@ -3664,10 +3686,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         fillDebtTarget(state.repayTargetId);
         setRecordType("Кредит");
         const rec = currentRecords().find((r) => r.id === state.repayTargetId);
-        if (rec) {
-          const left = remainingOf(rec);
-          if (left > 0.009) document.getElementById("field-amount").value = String(left);
-        }
+        fillRepayAmount(rec);
         document.getElementById("record-overlay").classList.add("open");
         const repayScroll = document.querySelector("#record-form .modal-scroll");
         if (repayScroll) repayScroll.scrollTop = 0;
@@ -4481,10 +4500,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("field-debt-target").addEventListener("change", () => {
       state.repayTargetId = document.getElementById("field-debt-target").value || null;
       const rec = currentRecords().find((r) => r.id === state.repayTargetId);
-      if (rec) {
-        const left = remainingOf(rec);
-        if (left > 0.009) document.getElementById("field-amount").value = String(left);
-      }
+      fillRepayAmount(rec);
     });
     document.getElementById("pay-add").addEventListener("click", submitInlinePayment);
     document.getElementById("side-out").addEventListener("click", () => setLoanSide("out"));
