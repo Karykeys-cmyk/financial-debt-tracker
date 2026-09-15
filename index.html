@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="50" />
+  <meta name="app-build" content="51" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=50" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=50" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=50" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=50" />
+  <link rel="manifest" href="manifest.webmanifest?v=51" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=51" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=51" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=51" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1151,7 +1151,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=50" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=51" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1375,7 +1375,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "50";
+    const APP_BUILD = "51";
     const DEFAULT_SYNC_URL = "https://sqsnhapkgtdjjkiexfrn.supabase.co";
     const DEFAULT_SYNC_KEY = "sb_publishable_2wQo7nf5W4eBQmiPorV9Kg_u-gjFYb-";
     const SYNC_SQL = `create table if not exists public.finance_state (
@@ -1400,7 +1400,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     const PAYMENT_METHODS = [
       "Наличные",
       "Перевод",
-      "На счёт юрлица",
       "Безналичный расчёт",
       "Услугами",
       "Товарами",
@@ -1448,6 +1447,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       if (r.category === "Деньги в долг" && r.loanSide !== "in") r.loanSide = "out";
       if (!Array.isArray(r.payments)) r.payments = [];
+      if (r.paymentMethod) r.paymentMethod = normalizePaymentMethod(r.paymentMethod);
       return r;
     }
 
@@ -1526,12 +1526,18 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return remainingOf(record) <= 0.009;
     }
 
+    function normalizePaymentMethod(value) {
+      const v = String(value || "").trim();
+      if (v === "На счёт юрлица") return "Безналичный расчёт";
+      return v;
+    }
+
     function asPayment(record) {
       return {
         id: record.id,
         date: record.date || record.issueDate || todayIso(),
         amount: Number(record.amount) || 0,
-        paymentMethod: record.paymentMethod || "",
+        paymentMethod: normalizePaymentMethod(record.paymentMethod),
         comment: record.comment || ""
       };
     }
@@ -1540,7 +1546,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!p) return "";
       const amount = Math.round((Number(p.amount) || 0) * 100) / 100;
       const comment = String(p.comment || "").trim();
-      const method = String(p.paymentMethod || "").trim();
+      const method = normalizePaymentMethod(p.paymentMethod);
       const date = p.date || "";
       if (!date || !amount) return "";
       return date + "\n" + amount + "\n" + method + "\n" + comment;
@@ -1552,7 +1558,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         id: p.id,
         date: p.date || todayIso(),
         amount: Number(p.amount) || 0,
-        paymentMethod: p.paymentMethod || "",
+        paymentMethod: normalizePaymentMethod(p.paymentMethod),
         comment: p.comment || ""
       };
     }
@@ -2250,6 +2256,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function render() {
+      if (state.paymentFilter === "На счёт юрлица") state.paymentFilter = "Безналичный расчёт";
       const root = document.getElementById("app");
       if (state.view === "home") {
         root.innerHTML = renderHome();
