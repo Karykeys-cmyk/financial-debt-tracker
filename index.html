@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-    <meta name="app-build" content="43" />
-  <title>Финансовый учёт</title>
-  <meta name="theme-color" content="#0a1628" />
+  <meta name="app-build" content="44" />
+  <title>База Баляевой</title>
+  <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-    <link rel="manifest" href="manifest.webmanifest?v=43" />
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=43" />
-    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=43" />
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=43" />
+  <link rel="manifest" href="manifest.webmanifest?v=44" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=44" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=44" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=44" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -85,27 +85,100 @@
       color: inherit;
     }
 
+    .brand-bar {
+      position: sticky;
+      top: 0;
+      z-index: 8;
+      background: linear-gradient(180deg, #ffffff 0%, #ffffff 58%, #f3f8ff 78%, rgba(10, 22, 40, 0) 100%);
+      padding: max(8px, env(safe-area-inset-top)) 18px 34px;
+    }
+
+    .brand-bar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: 1560px;
+      margin: 0 auto;
+      min-height: 58px;
+    }
+
+    .brand-logo {
+      display: block;
+      height: 56px;
+      width: auto;
+      max-width: min(280px, calc(100% - 64px));
+      object-fit: contain;
+      object-position: left center;
+    }
+
+    .sync-orb {
+      flex-shrink: 0;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #7b8ea3;
+      background: #ffffff;
+      border: 1px solid rgba(10, 22, 40, 0.1);
+      box-shadow: 0 4px 14px rgba(10, 22, 40, 0.08);
+      transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.2s;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .sync-orb svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .sync-orb:hover {
+      transform: translateY(-1px);
+    }
+
+    .sync-orb.ok {
+      color: #12b76a;
+      border-color: rgba(18, 183, 106, 0.35);
+      background: #f3fff8;
+    }
+
+    .sync-orb.busy {
+      color: #2f6feb;
+      border-color: rgba(47, 111, 235, 0.28);
+      background: #f4f8ff;
+    }
+
+    .sync-orb.busy svg {
+      animation: sync-spin 0.85s linear infinite;
+    }
+
+    .sync-orb.error {
+      color: #e5484d;
+      border-color: rgba(229, 72, 77, 0.35);
+      background: #fff6f6;
+    }
+
+    @keyframes sync-spin {
+      to { transform: rotate(360deg); }
+    }
+
     .app {
       position: relative;
       z-index: 1;
       max-width: 1560px;
       margin: 0 auto;
-      padding: 28px 28px 48px;
+      padding: 8px 28px 48px;
       min-height: 100vh;
     }
 
     .topbar {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
-      margin-bottom: 28px;
-    }
-
-    .topbar h1 {
-      font-size: 1.55rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      flex: 1;
+      margin-bottom: 22px;
     }
 
     .back-btn {
@@ -125,55 +198,6 @@
       background: var(--card-hover);
       color: var(--text);
       transform: translateX(-2px);
-    }
-
-    .hero {
-      text-align: center;
-      margin: 24px 0 32px;
-    }
-
-    .hero h1 {
-      font-size: clamp(1.8rem, 4vw, 2.4rem);
-      font-weight: 750;
-      letter-spacing: -0.03em;
-    }
-
-    .hero p {
-      margin-top: 8px;
-      color: var(--text-secondary);
-    }
-
-    .sync-bar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin: 18px 0 8px;
-    }
-
-    .sync-status {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-    }
-
-    .sync-status.ok { color: var(--saldo-plus); }
-    .sync-status.error { color: var(--saldo-minus); }
-    .sync-status.busy { color: var(--debit); }
-
-    .sync-btn {
-      padding: 8px 14px;
-      border-radius: 12px;
-      background: var(--card);
-      color: var(--text-secondary);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
-      transition: background 0.3s, color 0.3s;
-    }
-
-    .sync-btn:hover {
-      background: var(--card-hover);
-      color: var(--text);
     }
 
     .sql-box {
@@ -1086,7 +1110,11 @@
     }
 
     @media (max-width: 760px) {
-      .app { padding: 18px 14px 36px; }
+      .app { padding: 6px 14px 36px; }
+      .brand-bar { padding: max(6px, env(safe-area-inset-top)) 12px 28px; }
+      .brand-logo { height: 46px; }
+      .sync-orb { width: 38px; height: 38px; }
+      .sync-orb svg { width: 20px; height: 20px; }
       .desktop-table { display: none; }
       .mobile-list { display: flex; }
       .table-panel { overflow: visible; }
@@ -1094,6 +1122,17 @@
   </style>
 </head>
 <body>
+  <header class="brand-bar">
+    <div class="brand-bar-inner">
+      <img class="brand-logo" src="icons/logo.png?v=44" alt="База Баляевой" />
+      <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20.5 12a8.5 8.5 0 1 1-2.5-6.02"/>
+          <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20.5 3.8V12h-8.2"/>
+        </svg>
+      </button>
+    </div>
+  </header>
   <div class="app" id="app"></div>
 
   <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
@@ -1306,7 +1345,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "43";
+    const APP_BUILD = "44";
     const KEPT_PAYMENTS = {
       "Даня": [
         {
@@ -1677,10 +1716,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function setSyncStatus(status, message) {
       syncState.status = status;
       syncState.message = message;
-      const el = document.getElementById("sync-status");
-      if (!el) return;
-      el.className = "sync-status " + status;
-      el.textContent = message;
+      const btn = document.getElementById("sync-now");
+      if (!btn) return;
+      btn.className = "sync-orb " + (status || "");
+      const label = message || "Синхронизировать";
+      btn.title = label;
+      btn.setAttribute("aria-label", label);
+      btn.setAttribute("aria-busy", status === "busy" ? "true" : "false");
     }
 
     function livePaymentIds(data) {
@@ -2256,15 +2298,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }).join("");
 
       return `
-        <div class="hero">
-          <h1>Финансовый учёт</h1>
-          <p>Контрагенты и дебиторская задолженность</p>
-          <div class="sync-bar">
-            <span class="sync-status ${syncState.status}" id="sync-status">${escapeHtml(syncState.message)}</span>
-            <button type="button" class="sync-btn" id="sync-now">↻ Синхронизировать</button>
-            <button type="button" class="sync-btn" id="sync-settings">Настройки синхронизации</button>
-          </div>
-        </div>
         <div class="home-totals">
           <div class="summary-card saldo">
             <div class="label">Сумма долгов</div>
@@ -2510,7 +2543,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return `
         <div class="topbar">
           <button class="back-btn" id="back-home">← Назад</button>
-          <h1>Финансовый учёт</h1>
           <button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
@@ -2582,8 +2614,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function bindView() {
       document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
-      document.getElementById("sync-now")?.addEventListener("click", () => { syncNow(); });
-      document.getElementById("sync-settings")?.addEventListener("click", openSyncModal);
       document.getElementById("back-home")?.addEventListener("click", () => {
         state.view = "home";
         state.contractor = null;
@@ -3637,7 +3667,35 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }, { passive: false });
     });
 
+    const syncNowBtn = document.getElementById("sync-now");
+    let syncHoldTimer = null;
+    let syncHoldOpened = false;
+    syncNowBtn.addEventListener("click", (e) => {
+      if (syncHoldOpened) {
+        e.preventDefault();
+        syncHoldOpened = false;
+        return;
+      }
+      syncNow();
+    });
+    syncNowBtn.addEventListener("pointerdown", () => {
+      syncHoldOpened = false;
+      clearTimeout(syncHoldTimer);
+      syncHoldTimer = setTimeout(() => {
+        syncHoldOpened = true;
+        openSyncModal();
+      }, 650);
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => {
+      syncNowBtn.addEventListener(ev, () => clearTimeout(syncHoldTimer));
+    });
+    syncNowBtn.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      openSyncModal();
+    });
+
     render();
+    setSyncStatus(syncState.status, syncState.message);
     if (getSyncConfig().key) {
       setSyncStatus("busy", "Синхронизация…");
       syncNow();
