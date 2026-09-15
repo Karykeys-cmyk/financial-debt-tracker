@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="52" />
+  <meta name="app-build" content="53" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=52" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=52" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=52" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=52" />
+  <link rel="manifest" href="manifest.webmanifest?v=53" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=53" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=53" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=53" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1110,12 +1110,19 @@
     }
 
     .type-toggle button {
-      padding: 10px;
+      padding: 10px 8px;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--text-secondary);
+      line-height: 1.25;
+      min-height: 44px;
       transition: background 0.3s, color 0.3s, border-color 0.3s;
+    }
+
+    .cab-heart {
+      color: #ff6b8a;
+      font-weight: 700;
     }
 
     .type-toggle button.active.debit {
@@ -1247,7 +1254,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=52" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=53" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1390,14 +1397,14 @@
   <div class="overlay" id="cabinet-overlay" role="dialog" aria-modal="true">
     <form class="modal" id="cabinet-form" novalidate>
       <h2>Личные кабинеты</h2>
-      <p class="confirm-text">Пользователь получает свою книгу учёта. Должник выбирается из ваших контрагентов и видит ту же карточку, но с именем «Кариша».</p>
+      <p class="confirm-text">Нахлебничек ♥ получает свою книгу учёта. Арендатор денег — тоже полноценный кабинет, только у него заранее есть карточка долга: он видит её с именем «Кариша».</p>
       <div class="cabinet-list" id="cabinet-list"></div>
       <div class="cabinet-form-title">Новый кабинет</div>
       <div class="field">
         <label>Тип кабинета</label>
         <div class="type-toggle">
-          <button type="button" class="active debit" id="cab-role-user">Пользователь</button>
-          <button type="button" class="credit" id="cab-role-debtor">Должник</button>
+          <button type="button" class="active debit" id="cab-role-user">Нахлебничек <span class="cab-heart">♥</span></button>
+          <button type="button" class="credit" id="cab-role-debtor">Арендатор денег</button>
         </div>
       </div>
       <div class="field">
@@ -1413,7 +1420,7 @@
         <input id="field-cab-name" type="text" maxlength="60" placeholder="Как подписывать кабинет" />
       </div>
       <div class="field hidden" id="cab-contractor-field">
-        <label for="field-cab-contractor">Контрагент-должник</label>
+        <label for="field-cab-contractor">Карточка контрагента</label>
         <select id="field-cab-contractor"></select>
       </div>
       <div class="error" id="cabinet-error"></div>
@@ -1509,7 +1516,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "52";
+    const APP_BUILD = "53";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -1601,18 +1608,32 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return Boolean(s && s.role === "user");
     }
 
+    function isLoanBookRole() {
+      return isAppUser() || isDebtor();
+    }
+
     function canEditBook() {
-      return !isDebtor();
+      return Boolean(sessionUser());
     }
 
     function ownerName() {
       return db.ownerName || OWNER_NAME;
     }
 
+    function isLinkedOwnerCard(name) {
+      return isDebtor() && name === ownerName();
+    }
+
+    function canDeleteContractor(name) {
+      if (!canEditBook()) return false;
+      if (isLinkedOwnerCard(name)) return false;
+      return true;
+    }
+
     function roleLabel(role) {
       if (role === "admin") return "Администратор";
-      if (role === "debtor") return "Кабинет должника";
-      return "Пользователь";
+      if (role === "debtor") return "Арендатор денег";
+      return "Нахлебничек ♥";
     }
 
     function ensureUserBook(data, login) {
@@ -1652,30 +1673,34 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function activeStore() {
       const s = sessionUser();
-      if (s && s.role === "user") return ensureUserBook(db, s.login);
+      if (s && (s.role === "user" || s.role === "debtor")) return ensureUserBook(db, s.login);
       return db;
     }
 
     function contractorsMap() {
       const s = sessionUser();
       if (s && s.role === "debtor") {
+        const own = { ...(activeStore().contractors || {}) };
         const src = db.contractors[s.contractorName];
-        if (!src) return {};
-        return { [ownerName()]: src };
+        if (src) own[ownerName()] = src;
+        return own;
       }
       return activeStore().contractors || {};
     }
 
     function sourceContractorName(name) {
       const s = sessionUser();
-      if (s && s.role === "debtor") return s.contractorName || name;
+      if (s && s.role === "debtor" && name === ownerName()) return s.contractorName || name;
       return name;
     }
 
     function contractorConfig(name) {
-      if (isAppUser()) return { hasRental: false, hasDtf: false, hasInvoices: false };
-      const source = sourceContractorName(name);
-      return SPECIAL[source] || { hasRental: false, hasDtf: false, hasInvoices: false };
+      if (isLinkedOwnerCard(name)) {
+        const source = sourceContractorName(name);
+        return SPECIAL[source] || { hasRental: false, hasDtf: false, hasInvoices: false };
+      }
+      if (isLoanBookRole()) return { hasRental: false, hasDtf: false, hasInvoices: false };
+      return SPECIAL[name] || { hasRental: false, hasDtf: false, hasInvoices: false };
     }
 
     function migrateRecord(record) {
@@ -2286,6 +2311,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function contractorNames() {
       const names = Object.keys(contractorsMap() || {});
+      if (isDebtor()) {
+        const owner = ownerName();
+        const extras = names.filter((n) => n !== owner).sort((a, b) => a.localeCompare(b, "ru"));
+        return names.includes(owner) ? [owner, ...extras] : extras;
+      }
       if (!isAdmin()) {
         return names.sort((a, b) => a.localeCompare(b, "ru"));
       }
@@ -2681,7 +2711,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         <div class="login-wrap">
           <form class="login-card" id="login-form">
             <h1>Вход в кабинет</h1>
-            <p class="login-lead">Выберите месяц в кабинете, чтобы увидеть прибыль. Администратор создаёт кабинеты пользователям и должникам.</p>
+            <p class="login-lead">Выберите месяц в кабинете, чтобы увидеть прибыль. Администратор создаёт кабинеты нахлебничкам ♥ и арендаторам денег.</p>
             <div class="field">
               <label for="login-name">Логин</label>
               <input id="login-name" type="text" autocomplete="username" required />
@@ -2744,7 +2774,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         <div class="session-bar">
           <div class="session-who">
             <strong>${escapeHtml(s.displayName || s.login)}</strong>
-            <span>${escapeHtml(roleLabel(s.role))}</span>
+            <span>${s.role === "user" ? "Нахлебничек <span class=\"cab-heart\">♥</span>" : escapeHtml(roleLabel(s.role))}</span>
           </div>
           <div class="session-actions">
             ${isAdmin() ? `<button type="button" class="back-btn" id="open-cabinets">Личные кабинеты</button>` : ""}
@@ -2786,8 +2816,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const ours = ourDebt(name);
         const sortCount = unsortedPayments(name).length;
         const overdue = hasOverdueDebt(name);
-        const meta = isDebtor()
-          ? ("Ваша карточка у " + ownerName())
+        const meta = isLinkedOwnerCard(name)
+          ? ("Карточка с долгом у " + ownerName())
           : (cfg.hasRental ? "Аренда и займы" : "Только займы");
         const split = cfg.hasRental ? debitBreakdown(name) : null;
         const splitHtml = split ? `
@@ -2826,13 +2856,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
             ${sortCount ? `<div class="card-sort-mark">Требует сортировки: ${sortCount}</div>` : ""}
           </button>
-          ${canEditBook() ? `<button type="button" class="card-delete" data-delete-contractor="${escapeHtml(name)}" title="Удалить карточку" aria-label="Удалить карточку">✕</button>` : ""}
+          ${canDeleteContractor(name) ? `<button type="button" class="card-delete" data-delete-contractor="${escapeHtml(name)}" title="Удалить карточку" aria-label="Удалить карточку">✕</button>` : ""}
           </div>
         `;
       }).join("");
 
       const empty = !contractorNames().length
-        ? `<div class="empty">${isDebtor() ? "Карточка пока недоступна. Попросите администратора привязать кабинет к контрагенту." : "Контрагентов пока нет — добавьте первого должника."}</div>`
+        ? `<div class="empty">${isDebtor() && !contractorNames().length ? "Карточка пока недоступна. Попросите администратора привязать кабинет к контрагенту." : "Карточек пока нет — добавьте первого арендатора денег."}</div>`
         : "";
 
       return `
@@ -2872,7 +2902,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           ${canEditBook() ? `
           <button class="add-contractor" id="add-contractor">
             <div class="icon">➕</div>
-            <div class="name">${isAppUser() ? "Добавить должника" : "Добавить контрагента"}</div>
+            <div class="name">${isLoanBookRole() ? "Добавить арендатора денег" : "Добавить контрагента"}</div>
           </button>` : ""}
         </div>
         ${empty}
@@ -2966,7 +2996,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               ${canEditBook() ? `
               ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>`}
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Открыть долг">✏️</button>
-              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>` : `<span class="muted">Только просмотр</span>`}
+              <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>` : ""}
             </span>
           </div>
         </div>
@@ -3064,7 +3094,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                   ${canEditBook() ? `
                   <button class="text-btn" data-sort-assign="${escapeHtml(p.id)}">К долгу</button>
                   <button class="icon-btn" data-sort-edit="${escapeHtml(p.id)}" aria-label="Изменить выплату">✏️</button>
-                  <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}">🗑️</button>` : `<span class="muted">Только просмотр</span>`}
+                  <button class="icon-btn danger" data-sort-delete="${escapeHtml(p.id)}">🗑️</button>` : ""}
                 </span>
               </div>
             </div>
@@ -3093,7 +3123,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ${renderSessionBar()}
         <div class="topbar">
           <button class="back-btn" id="back-home">← Назад</button>
-          ${canEditBook() ? `<button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>` : ""}
+          ${canDeleteContractor(name) ? `<button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>` : ""}
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
         ${hasOverdueDebt(name) ? `<p class="overdue-mark" style="text-align:center;margin:-12px 0 18px;">Просрочен возврат долга</p>` : ""}
@@ -4004,6 +4034,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function askDeleteContractor(name) {
+      if (!canDeleteContractor(name)) {
+        showToast("Эту карточку задаёт администратор — её нельзя удалить");
+        return;
+      }
       state.pendingDelete = { kind: "contractor", name };
       openConfirm("Удалить карточку?", "Будут удалены контрагент «" + name + "» и все его записи.");
     }
@@ -4154,7 +4188,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       saveData(db);
       closeContractorModal();
       render();
-      showToast(isAppUser() ? "Должник добавлен" : "Контрагент добавлен");
+      showToast(isLoanBookRole() ? "Арендатор денег добавлен" : "Контрагент добавлен");
     }
 
     function adminContractorNames() {
@@ -4191,8 +4225,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
       list.innerHTML = rows.map((c) => {
         const kind = c.role === "debtor"
-          ? ("должник · карточка «" + (c.contractorName || "—") + "»")
-          : (c.role === "admin" ? "администратор" : "пользователь");
+          ? ("арендатор денег · карточка «" + (c.contractorName || "—") + "»")
+          : (c.role === "admin" ? "администратор" : "нахлебничек ♥");
         const del = c.login === ADMIN_LOGIN
           ? ""
           : `<button type="button" class="icon-btn danger" data-delete-cabinet="${escapeHtml(c.login)}" title="Удалить кабинет">🗑️</button>`;
@@ -4283,8 +4317,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         cab.contractorName = contractorName;
         cab.displayName = contractorName;
       } else {
-        ensureUserBook(db, login);
+        cab.displayName = displayName || login;
       }
+      ensureUserBook(db, login);
       db.deletedCabinetLogins = (db.deletedCabinetLogins || []).filter((n) => n !== login);
       db.cabinets = (db.cabinets || []).filter((c) => c.login !== login);
       db.cabinets.push(cab);
@@ -4294,8 +4329,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("cabinet-error").classList.remove("show");
       fillCabinetModal();
       showToast(cab.role === "debtor"
-        ? "Кабинет должника создан: " + contractorName + " увидит карточку «" + ownerName() + "»"
-        : "Кабинет пользователя создан");
+        ? "Кабинет арендатора денег создан: " + contractorName + " увидит карточку «" + ownerName() + "» и сможет пользоваться интерфейсом"
+        : "Кабинет нахлебничка ♥ создан");
     }
 
     function closeOverlays() {
