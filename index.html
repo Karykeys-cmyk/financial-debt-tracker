@@ -390,6 +390,77 @@
       border: 1px solid rgba(255, 107, 107, 0.35);
     }
 
+    tr.paid-row td {
+      background: rgba(94, 233, 163, 0.12);
+    }
+
+    .record-card.paid-row {
+      border: 1px solid rgba(94, 233, 163, 0.45);
+      background: rgba(94, 233, 163, 0.08);
+    }
+
+    .remain-open { color: var(--debit); font-weight: 650; }
+    .remain-paid { color: var(--saldo-plus); font-weight: 650; }
+    .remain-overdue { color: var(--saldo-minus); font-weight: 650; }
+
+    .payments-panel {
+      margin: 4px 0 16px;
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .payments-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .payments-head span {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .payment-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.92rem;
+    }
+
+    .payment-item .meta {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    .pay-inline {
+      margin-top: 12px;
+    }
+
+    .pay-inline .btn-primary {
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .text-btn {
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(94, 233, 163, 0.14);
+      color: var(--saldo-plus);
+      font-size: 0.82rem;
+      font-weight: 650;
+    }
+
+    .text-btn:hover {
+      background: rgba(94, 233, 163, 0.22);
+    }
+
     .saldo-positive { color: var(--saldo-plus); }
     .saldo-negative { color: var(--saldo-minus); }
 
@@ -728,6 +799,10 @@
       display: flex;
     }
 
+    #confirm-overlay {
+      z-index: 30;
+    }
+
     .modal {
       width: min(520px, 100%);
       max-height: calc(100vh - 40px);
@@ -924,6 +999,17 @@
   <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
     <form class="modal" id="record-form" novalidate>
       <h2 id="record-title">Добавить запись</h2>
+      <div class="field" id="type-field">
+        <label>Тип</label>
+        <div class="type-toggle">
+          <button type="button" class="active debit" data-type="Дебет" id="type-debit">Долг</button>
+          <button type="button" class="credit" data-type="Кредит" id="type-credit">Возврат</button>
+        </div>
+      </div>
+      <div class="field hidden" id="debt-target-field">
+        <label for="field-debt-target">К какому долгу выплата</label>
+        <select id="field-debt-target"></select>
+      </div>
       <div class="field hidden" id="category-field">
         <label for="field-category">Категория</label>
         <select id="field-category"></select>
@@ -932,20 +1018,9 @@
         <label for="field-subcategory">Подкатегория</label>
         <select id="field-subcategory"></select>
       </div>
-      <div class="field">
-        <label for="field-amount">Сумма</label>
+      <div class="field" id="amount-field">
+        <label for="field-amount" id="amount-label">Сумма</label>
         <input id="field-amount" type="number" min="0.01" step="0.01" placeholder="0" required />
-      </div>
-      <div class="field" id="date-field">
-        <label for="field-date" id="date-label">Дата</label>
-        <input id="field-date" type="date" />
-      </div>
-      <div class="field">
-        <label>Тип</label>
-        <div class="type-toggle">
-          <button type="button" class="active debit" data-type="Дебет" id="type-debit">Дебет</button>
-          <button type="button" class="credit" data-type="Кредит" id="type-credit">Кредит</button>
-        </div>
       </div>
       <div class="field hidden" id="loanside-field">
         <label>Займ</label>
@@ -987,6 +1062,33 @@
         <textarea id="field-comment" placeholder="Необязательно"></textarea>
       </div>
       <div class="profit-preview hidden" id="profit-preview">Прибыль: 0 ₽</div>
+      <div class="payments-panel hidden" id="payments-panel">
+        <div class="payments-head">
+          <strong>Выплаты по этому долгу</strong>
+          <span id="payments-remaining"></span>
+        </div>
+        <div id="payments-list"></div>
+        <div class="pay-inline">
+          <div class="field">
+            <label for="pay-date">Дата выплаты</label>
+            <input id="pay-date" type="date" />
+          </div>
+          <div class="field">
+            <label for="pay-amount">Сумма выплаты</label>
+            <input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="0" />
+          </div>
+          <div class="field">
+            <label for="pay-method">Способ оплаты</label>
+            <select id="pay-method"></select>
+          </div>
+          <div class="field">
+            <label for="pay-comment">Комментарий к выплате</label>
+            <input id="pay-comment" type="text" placeholder="Необязательно" />
+          </div>
+          <button type="button" class="btn-primary" id="pay-add">Добавить выплату</button>
+          <div class="error" id="pay-error"></div>
+        </div>
+      </div>
       <div class="error" id="record-error"></div>
       <div class="modal-actions">
         <button type="button" class="btn-secondary" id="record-cancel">Отмена</button>
@@ -1074,6 +1176,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     const RENTAL_SUBS = ["Коммуналка", "Аренда"];
     const PAYMENT_METHODS = [
       "Наличные",
+      "Перевод",
+      "На счёт юрлица",
       "Безналичный расчёт",
       "Услугами",
       "Товарами",
@@ -1095,6 +1199,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       editingId: null,
       recordType: "Дебет",
       loanSide: "out",
+      repayTargetId: null,
       pendingDelete: null
     };
 
@@ -1112,7 +1217,85 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         r.subCategory = null;
       }
       if (r.category === "Деньги в долг" && r.loanSide !== "in") r.loanSide = "out";
+      if (!Array.isArray(r.payments)) r.payments = [];
       return r;
+    }
+
+    function paymentSum(record) {
+      return (record.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    }
+
+    function remainingOf(record) {
+      return Math.round(((Number(record.amount) || 0) - paymentSum(record)) * 100) / 100;
+    }
+
+    function isFullyPaid(record) {
+      return remainingOf(record) <= 0.009;
+    }
+
+    function debtGroupKey(record) {
+      if (record.category === "Деньги в долг") return "loan:" + (record.loanSide === "in" ? "in" : "out");
+      return String(record.category || "") + ":" + String(record.subCategory || "");
+    }
+
+    function asPayment(record) {
+      return {
+        id: record.id,
+        date: record.date || record.issueDate || todayIso(),
+        amount: Number(record.amount) || 0,
+        paymentMethod: record.paymentMethod || "",
+        comment: record.comment || ""
+      };
+    }
+
+    function migrateContractorRecords(records, deletedRecordIds, deletedPaymentIds) {
+      const deletedPays = new Set(deletedPaymentIds || []);
+      const list = (records || []).map(migrateRecord);
+      list.forEach((r) => {
+        r.payments = (r.payments || []).filter((p) => p && p.id && !deletedPays.has(p.id));
+      });
+      const credits = list
+        .filter((r) => r.type === "Кредит")
+        .slice()
+        .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.id || "").localeCompare(b.id || ""));
+      const debts = list.filter((r) => r.type !== "Кредит");
+      if (credits.length) {
+        const groups = new Map();
+        debts.forEach((d) => {
+          const key = debtGroupKey(d);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(d);
+        });
+        credits.forEach((credit) => {
+          if (!credit.id) return;
+          const pool = groups.get(debtGroupKey(credit)) || [];
+          let target = pool.find((d) => remainingOf(d) > 0.009);
+          if (!target) target = pool[pool.length - 1];
+          if (!target) target = debts.find((d) => remainingOf(d) > 0.009) || debts[debts.length - 1];
+          if (target && !target.payments.some((p) => p.id === credit.id) && !deletedPays.has(credit.id)) {
+            target.payments.push(asPayment(credit));
+          }
+          if (!deletedRecordIds.includes(credit.id)) deletedRecordIds.push(credit.id);
+        });
+      }
+      return debts;
+    }
+
+    function migrateDb(data) {
+      if (!data.contractors) data.contractors = {};
+      if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
+      if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
+      if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
+      Object.keys(data.contractors).forEach((name) => {
+        const contractor = data.contractors[name] || { records: [] };
+        contractor.records = migrateContractorRecords(
+          contractor.records,
+          data.deletedRecordIds,
+          data.deletedPaymentIds
+        );
+        data.contractors[name] = contractor;
+      });
+      return data;
     }
 
     function defaultData() {
@@ -1122,6 +1305,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           "Максюшка": { records: [] }
         },
         deletedRecordIds: [],
+        deletedPaymentIds: [],
         deletedContractorNames: []
       };
     }
@@ -1136,14 +1320,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         if (!removed.has("Даня") && !data.contractors["Даня"]) data.contractors["Даня"] = { records: [] };
         if (!removed.has("Максюшка") && !data.contractors["Максюшка"]) data.contractors["Максюшка"] = { records: [] };
         Object.keys(data.contractors).forEach((name) => {
-          if (removed.has(name)) {
-            delete data.contractors[name];
-            return;
-          }
-          const list = data.contractors[name].records || [];
-          data.contractors[name].records = list.map(migrateRecord);
+          if (removed.has(name)) delete data.contractors[name];
         });
-        return data;
+        return migrateDb(data);
       } catch (err) {
         return defaultData();
       }
@@ -1152,6 +1331,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function saveData(data, options) {
       data.updatedAt = Date.now();
       if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
+      if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       if (!options || !options.skipRemote) schedulePush();
@@ -1159,6 +1339,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     let db = loadData();
     if (!Array.isArray(db.deletedRecordIds)) db.deletedRecordIds = [];
+    if (!Array.isArray(db.deletedPaymentIds)) db.deletedPaymentIds = [];
     if (!Array.isArray(db.deletedContractorNames)) db.deletedContractorNames = [];
     saveData(db, { skipRemote: true });
 
@@ -1214,6 +1395,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function mergeFinanceData(local, remote) {
       const out = defaultData();
       const deleted = new Set([...(local.deletedRecordIds || []), ...(remote.deletedRecordIds || [])]);
+      const deletedPays = new Set([...(local.deletedPaymentIds || []), ...(remote.deletedPaymentIds || [])]);
       const deletedNames = new Set([...(local.deletedContractorNames || []), ...(remote.deletedContractorNames || [])]);
       const names = new Set([
         ...Object.keys(local.contractors || {}),
@@ -1226,16 +1408,28 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const localList = local.contractors?.[name]?.records || [];
         remoteList.concat(localList).forEach((rec) => {
           if (!rec || !rec.id || deleted.has(rec.id)) return;
-          map.set(rec.id, migrateRecord(rec));
+          const incoming = migrateRecord(rec);
+          incoming.payments = (incoming.payments || []).filter((p) => p && p.id && !deletedPays.has(p.id));
+          const existing = map.get(incoming.id);
+          if (!existing) {
+            map.set(incoming.id, incoming);
+            return;
+          }
+          const pmap = new Map();
+          [...(existing.payments || []), ...(incoming.payments || [])].forEach((p) => {
+            if (p && p.id && !deletedPays.has(p.id)) pmap.set(p.id, p);
+          });
+          map.set(incoming.id, { ...incoming, payments: [...pmap.values()] });
         });
         out.contractors[name] = { records: [...map.values()] };
       });
       if (!deletedNames.has("Даня") && !out.contractors["Даня"]) out.contractors["Даня"] = { records: [] };
       if (!deletedNames.has("Максюшка") && !out.contractors["Максюшка"]) out.contractors["Максюшка"] = { records: [] };
       out.deletedRecordIds = [...deleted];
+      out.deletedPaymentIds = [...deletedPays];
       out.deletedContractorNames = [...deletedNames];
       out.updatedAt = Date.now();
-      return out;
+      return migrateDb(out);
     }
 
     async function fetchRemote() {
@@ -1377,6 +1571,40 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return true;
     }
 
+    function debtRecords(name) {
+      return (db.contractors[name]?.records || []).filter((r) => r.type !== "Кредит");
+    }
+
+    function totals(name, usePeriod) {
+      const records = debtRecords(name);
+      let debit = 0;
+      let credit = 0;
+      records.forEach((r) => {
+        if (isBorrowed(r)) return;
+        if (!usePeriod || inSelectedPeriod(r)) debit += Number(r.amount) || 0;
+        (r.payments || []).forEach((p) => {
+          if (usePeriod && !inSelectedPeriod(p)) return;
+          credit += Number(p.amount) || 0;
+        });
+      });
+      return { debit, credit, saldo: debit - credit };
+    }
+
+    function debitBreakdown(name, usePeriod) {
+      let records = debtRecords(name);
+      if (usePeriod) records = records.filter(inSelectedPeriod);
+      const add = (pred) => records.reduce((sum, r) => pred(r) ? sum + (Number(r.amount) || 0) : sum, 0);
+      const rentOnly = add((r) => r.category === "Аренда помещения" && r.subCategory === "Аренда");
+      const utilities = add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка");
+      const dtf = add((r) => r.category === "Аренда ДТФ");
+      const cash = add((r) => r.category === "Деньги в долг" && r.loanSide !== "in");
+      const invoices = add((r) => r.category === "Счета");
+      if (name === "Даня") {
+        return { rent: rentOnly + utilities, dtf, cash, invoices };
+      }
+      return { rent: rentOnly + dtf, utilities, cash, invoices };
+    }
+
     function periodYears() {
       const years = new Set();
       const now = new Date().getFullYear();
@@ -1402,37 +1630,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return `с ${formatDate(dates[0])} по ${formatDate(todayIso())}`;
     }
 
-    function totals(name, usePeriod) {
-      let records = db.contractors[name]?.records || [];
-      if (usePeriod) records = records.filter(inSelectedPeriod);
-      let debit = 0;
-      let credit = 0;
-      records.forEach((r) => {
-        if (isBorrowed(r)) return;
-        if (r.type === "Кредит") credit += Number(r.amount) || 0;
-        else debit += Number(r.amount) || 0;
-      });
-      return { debit, credit, saldo: debit - credit };
-    }
-
-    function debitBreakdown(name, usePeriod) {
-      let records = db.contractors[name]?.records || [];
-      if (usePeriod) records = records.filter(inSelectedPeriod);
-      const add = (pred) => records.reduce((sum, r) => {
-        if (r.type === "Кредит") return sum;
-        return pred(r) ? sum + (Number(r.amount) || 0) : sum;
-      }, 0);
-      const rentOnly = add((r) => r.category === "Аренда помещения" && r.subCategory === "Аренда");
-      const utilities = add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка");
-      const dtf = add((r) => r.category === "Аренда ДТФ");
-      const cash = add((r) => r.category === "Деньги в долг" && r.loanSide !== "in");
-      const invoices = add((r) => r.category === "Счета");
-      if (name === "Даня") {
-        return { rent: rentOnly + utilities, dtf, cash, invoices };
-      }
-      return { rent: rentOnly + dtf, utilities, cash, invoices };
-    }
-
     function debitBreakdownRows(name, split) {
       if (name === "Даня") {
         return [
@@ -1455,32 +1652,28 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function recordTypeLabel(r) {
-      if (r.category !== "Деньги в долг") return r.type;
-      if (r.loanSide === "in") return r.type === "Кредит" ? "Вернули" : "Взяли";
-      return r.type === "Кредит" ? "Возврат" : "Выдали";
+      if (isFullyPaid(r)) return "Погашен";
+      if (isBorrowed(r)) return "Наш долг";
+      if (r.category === "Деньги в долг") return "Выдали";
+      return "Долг";
     }
 
     function interestProfit(name) {
-      return (db.contractors[name]?.records || [])
-        .filter((r) => r.category === "Деньги в долг" && r.type !== "Кредит" && r.loanSide !== "in")
+      return debtRecords(name)
+        .filter((r) => r.category === "Деньги в долг" && r.loanSide !== "in")
         .reduce((sum, r) => sum + (Number(r.profit) || 0), 0);
     }
 
     function interestLoss(name) {
-      return (db.contractors[name]?.records || [])
-        .filter((r) => isBorrowed(r) && r.type !== "Кредит")
+      return debtRecords(name)
+        .filter((r) => isBorrowed(r))
         .reduce((sum, r) => sum + (Number(r.profit) || 0), 0);
     }
 
     function ourDebt(name) {
-      const records = (db.contractors[name]?.records || []).filter(isBorrowed);
-      let taken = 0;
-      let repaid = 0;
-      records.forEach((r) => {
-        if (r.type === "Кредит") repaid += Number(r.amount) || 0;
-        else taken += Number(r.amount) || 0;
-      });
-      return taken - repaid;
+      return debtRecords(name)
+        .filter(isBorrowed)
+        .reduce((sum, r) => sum + Math.max(0, remainingOf(r)), 0);
     }
 
     function globalDebtAndProfit() {
@@ -1498,22 +1691,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function overdueLoanIds(name) {
-      const records = (db.contractors[name]?.records || []).filter((r) => r.category === "Деньги в долг" && r.loanSide !== "in");
-      const loans = records
-        .filter((r) => r.type !== "Кредит")
-        .slice()
-        .sort((a, b) => (a.issueDate || a.date || "").localeCompare(b.issueDate || b.date || "") || (a.id || "").localeCompare(b.id || ""));
-      let creditLeft = records
-        .filter((r) => r.type === "Кредит")
-        .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
       const today = todayIso();
       const overdue = new Set();
-      loans.forEach((loan) => {
-        const amount = Number(loan.amount) || 0;
-        const applied = Math.min(creditLeft, amount);
-        creditLeft -= applied;
-        const unpaid = amount - applied > 0.009;
-        if (unpaid && loan.returnDate && loan.returnDate < today) overdue.add(loan.id);
+      debtRecords(name).forEach((r) => {
+        if (r.category !== "Деньги в долг" || r.loanSide === "in") return;
+        if (isFullyPaid(r)) return;
+        if (r.returnDate && r.returnDate < today) overdue.add(r.id);
       });
       return overdue;
     }
@@ -1548,6 +1731,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function visibleRecords() {
       const q = String(state.recordSearch || "").trim().toLowerCase();
       return currentRecords()
+        .filter((r) => r.type !== "Кредит")
         .filter((r) => {
           if (!q) {
             if (state.tab === "rental") {
@@ -1556,19 +1740,26 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               return false;
             }
           }
-          if (state.paymentFilter !== "Все" && (r.paymentMethod || "") !== state.paymentFilter) {
-            return false;
+          if (state.paymentFilter !== "Все") {
+            const methods = (r.payments || []).map((p) => p.paymentMethod || "");
+            if (!methods.includes(state.paymentFilter)) return false;
           }
           if (!inSelectedPeriod(r)) return false;
           if (q) {
+            const payText = (r.payments || []).map((p) => [
+              p.date, formatDate(p.date), p.amount, formatMoney(p.amount), p.paymentMethod, p.comment
+            ].join(" ")).join(" ");
             const hay = [
               r.date, r.issueDate, r.returnDate,
               formatDate(r.date), formatDate(r.issueDate), formatDate(r.returnDate),
               r.category, r.subCategory, r.type, recordTypeLabel(r),
-              r.comment, r.paymentMethod, r.invoiceNumber, r.month,
+              r.comment, r.invoiceNumber, r.month,
               r.amount, formatMoney(r.amount), formatMoney(r.profit),
+              formatMoney(remainingOf(r)), formatMoney(paymentSum(r)),
+              "остаток", "погашен", "выплата",
               isBorrowed(r) ? "взяли наш долг без срока" : "",
-              r.loanSide === "out" ? "выдали" : ""
+              r.loanSide === "out" ? "выдали" : "",
+              payText
             ].join(" ").toLowerCase();
             if (!hay.includes(q)) return false;
           }
@@ -1715,8 +1906,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       ` : "";
 
       const overdueIds = overdueLoanIds(name);
+      const rowClass = (r) => {
+        if (isFullyPaid(r)) return "paid-row";
+        if (overdueIds.has(r.id)) return "overdue-row";
+        return "";
+      };
+      const remainClass = (r) => {
+        if (isFullyPaid(r)) return "remain-paid";
+        if (overdueIds.has(r.id)) return "remain-overdue";
+        return "remain-open";
+      };
+      const payCount = (r) => (r.payments || []).length;
       const tableRows = rows.map((r) => `
-        <tr class="${overdueIds.has(r.id) ? "overdue-row" : ""}">
+        <tr class="${rowClass(r)}">
           <td>${formatDate(r.date)}</td>
           <td>${escapeHtml(r.category)}</td>
           <td>
@@ -1724,16 +1926,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${r.month ? `<span class="cell-extra">${escapeHtml(r.month)}</span>` : ""}
             ${r.invoiceNumber ? `<span class="cell-extra">№ ${escapeHtml(r.invoiceNumber)}</span>` : ""}
             ${r.issueDate ? `<span class="cell-extra">${isBorrowed(r) ? "получили" : "выдача"} ${formatDate(r.issueDate)}</span>` : ""}
-            ${r.returnDate ? `<span class="cell-extra ${overdueIds.has(r.id) ? "overdue-mark" : ""}">вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span>` : (isBorrowed(r) && r.type !== "Кредит" ? `<span class="cell-extra">без срока</span>` : "")}
+            ${r.returnDate ? `<span class="cell-extra ${overdueIds.has(r.id) ? "overdue-mark" : ""}">вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span>` : (isBorrowed(r) ? `<span class="cell-extra">без срока</span>` : "")}
+            ${payCount(r) ? `<span class="cell-extra">${payCount(r)} ${payCount(r) === 1 ? "выплата" : "выплаты"}</span>` : ""}
           </td>
           <td>${formatMoney(r.amount)}</td>
-          <td class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</td>
+          <td>${formatMoney(paymentSum(r))}</td>
+          <td class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</td>
+          <td class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</td>
           <td class="muted">${r.category === "Деньги в долг" ? (isBorrowed(r) ? "потери " : "") + formatMoney(r.profit) : "—"}</td>
-          <td>${escapeHtml(r.paymentMethod || "—")}</td>
           <td class="wrap muted">${escapeHtml(r.comment || "—")}</td>
           <td>
             <div class="actions">
-              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Редактировать" aria-label="Редактировать">✏️</button>
+              <button class="text-btn" data-pay="${escapeHtml(r.id)}" title="Внести выплату">Оплата</button>
+              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Открыть долг" aria-label="Открыть долг">✏️</button>
               <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" title="Удалить" aria-label="Удалить">🗑️</button>
             </div>
           </td>
@@ -1741,16 +1946,18 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       `).join("");
 
       const cards = rows.map((r) => `
-        <div class="record-card ${overdueIds.has(r.id) ? "overdue-row" : ""}">
-          <div class="row"><strong>${formatDate(r.date)}</strong><span class="${r.type === "Кредит" ? "type-credit" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
+        <div class="record-card ${rowClass(r)}">
+          <div class="row"><strong>${formatDate(r.date)}</strong><span class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
-          <div class="row muted"><span>${escapeHtml(r.paymentMethod || "—")}</span><span>${r.category === "Деньги в долг" ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span></div>
-          ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : (isBorrowed(r) && r.type !== "Кредит" ? `<div class="row muted"><span>без срока возврата</span></div>` : "")}
+          <div class="row"><span>Остаток</span><strong class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</strong></div>
+          <div class="row muted"><span>Выплачено ${formatMoney(paymentSum(r))}</span><span>${r.category === "Деньги в долг" ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span></div>
+          ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : (isBorrowed(r) ? `<div class="row muted"><span>без срока возврата</span></div>` : "")}
           ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
           <div class="row muted">
             <span></span>
             <span class="actions">
-              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Редактировать">✏️</button>
+              <button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>
+              <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Открыть долг">✏️</button>
               <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>
             </span>
           </div>
@@ -1758,6 +1965,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       `).join("");
 
       const tabRecords = currentRecords().filter((r) => {
+        if (r.type === "Кредит") return false;
         if (state.tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
         return r.category === currentCategory();
       });
@@ -1777,9 +1985,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 <th>Категория</th>
                 <th>Подкатегория</th>
                 <th>Сумма</th>
-                <th>Тип</th>
+                <th>Оплачено</th>
+                <th>Остаток</th>
+                <th>Статус</th>
                 <th>Прибыль</th>
-                <th>Способ оплаты</th>
                 <th>Комментарий</th>
                 <th>Действия</th>
               </tr>
@@ -1949,6 +2158,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         btn.addEventListener("click", () => openRecordModal(btn.getAttribute("data-edit")));
       });
 
+      document.querySelectorAll("[data-pay]").forEach((btn) => {
+        btn.addEventListener("click", () => openRecordModal(null, { repay: true, debtId: btn.getAttribute("data-pay") }));
+      });
+
       document.querySelectorAll("[data-delete]").forEach((btn) => {
         btn.addEventListener("click", () => askDelete(btn.getAttribute("data-delete")));
       });
@@ -1984,38 +2197,118 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }).join("");
     }
 
+    function debtLabel(r) {
+      const parts = [];
+      if (isBorrowed(r)) parts.push("Наш долг");
+      else parts.push(r.category || "Долг");
+      if (r.subCategory) parts.push(r.subCategory);
+      if (r.invoiceNumber) parts.push("№ " + r.invoiceNumber);
+      if (r.month) parts.push(r.month);
+      parts.push(formatDate(r.date || r.issueDate));
+      parts.push(formatMoney(r.amount));
+      parts.push(isFullyPaid(r) ? "погашен" : "остаток " + formatMoney(Math.max(0, remainingOf(r))));
+      return parts.join(" · ");
+    }
+
+    function fillDebtTarget(selectedId) {
+      const el = document.getElementById("field-debt-target");
+      const cat = currentCategory();
+      const recs = debtRecords(state.contractor).slice().sort((a, b) => {
+        const ap = isFullyPaid(a) ? 1 : 0;
+        const bp = isFullyPaid(b) ? 1 : 0;
+        if (ap !== bp) return ap - bp;
+        const ac = a.category === cat ? 0 : 1;
+        const bc = b.category === cat ? 0 : 1;
+        if (ac !== bc) return ac - bc;
+        return (b.date || b.issueDate || "").localeCompare(a.date || a.issueDate || "");
+      });
+      const open = recs.filter((r) => !isFullyPaid(r));
+      const closed = recs.filter((r) => isFullyPaid(r));
+      let html = `<option value="">Выберите долг</option>`;
+      const option = (r) => `<option value="${escapeHtml(r.id)}" ${r.id === selectedId ? "selected" : ""}>${escapeHtml(debtLabel(r))}</option>`;
+      if (open.length) html += `<optgroup label="Открытые долги">${open.map(option).join("")}</optgroup>`;
+      if (closed.length) html += `<optgroup label="Погашенные">${closed.map(option).join("")}</optgroup>`;
+      el.innerHTML = html;
+    }
+
+    function renderPaymentsPanel() {
+      const rec = currentRecords().find((r) => r.id === state.editingId);
+      const list = document.getElementById("payments-list");
+      const remainEl = document.getElementById("payments-remaining");
+      if (!rec) {
+        list.innerHTML = "";
+        remainEl.textContent = "";
+        return;
+      }
+      const paid = isFullyPaid(rec);
+      remainEl.textContent = paid
+        ? "Погашен · выплачено " + formatMoney(paymentSum(rec))
+        : "Остаток " + formatMoney(Math.max(0, remainingOf(rec)));
+      remainEl.className = paid ? "remain-paid" : "remain-open";
+      const payments = (rec.payments || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      list.innerHTML = payments.length ? payments.map((p) => `
+        <div class="payment-item">
+          <div>
+            <div>${formatDate(p.date)} · ${formatMoney(p.amount)}</div>
+            <div class="meta">${escapeHtml(p.paymentMethod || "—")}${p.comment ? " · " + escapeHtml(p.comment) : ""}</div>
+          </div>
+          <span></span>
+          <button type="button" class="icon-btn danger" data-delete-pay="${escapeHtml(p.id)}" title="Удалить выплату" aria-label="Удалить выплату">🗑️</button>
+        </div>
+      `).join("") : `<div class="empty" style="padding:10px 0;">Выплат пока нет</div>`;
+      list.querySelectorAll("[data-delete-pay]").forEach((btn) => {
+        btn.addEventListener("click", () => askDeletePayment(state.editingId, btn.getAttribute("data-delete-pay")));
+      });
+    }
+
+    function addPaymentToDebt(debtId, payment) {
+      const rec = currentRecords().find((r) => r.id === debtId);
+      if (!rec) return false;
+      if (!Array.isArray(rec.payments)) rec.payments = [];
+      rec.payments.push(payment);
+      saveData(db);
+      return true;
+    }
+
     function syncRecordFields() {
       const category = document.getElementById("field-category").value;
       const isDebt = category === "Деньги в долг";
       const isInvoice = category === "Счета";
       const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
       const borrowed = isDebt && state.loanSide === "in";
+      const isRepay = !state.editingId && state.recordType === "Кредит";
+      const isEditing = Boolean(state.editingId);
+      const isDebtIssue = !isRepay && isDebt;
 
-      const isDebtIssue = isDebt && state.recordType !== "Кредит";
-      const isDebtRepay = isDebt && state.recordType === "Кредит";
-
+      document.getElementById("type-field").classList.toggle("hidden", isEditing);
+      document.getElementById("debt-target-field").classList.toggle("hidden", !isRepay);
       document.getElementById("category-field").classList.add("hidden");
       document.getElementById("subcategory-field").classList.add("hidden");
-      document.getElementById("loanside-field").classList.toggle("hidden", !isDebt);
+      document.getElementById("amount-label").textContent = isRepay ? "Сумма выплаты" : "Сумма";
+      document.getElementById("loanside-field").classList.toggle("hidden", isRepay || !isDebt);
       document.getElementById("date-field").classList.toggle("hidden", isDebtIssue);
-      document.getElementById("date-label").textContent = isDebtRepay
-        ? (borrowed ? "Дата возврата" : "Дата погашения")
+      document.getElementById("date-label").textContent = isRepay
+        ? "Дата выплаты"
         : (isInvoice ? "Дата счета" : "Дата");
-      document.getElementById("month-field").classList.toggle("hidden", !isPeriod);
-      document.getElementById("year-field").classList.toggle("hidden", !isPeriod);
-      document.getElementById("invoice-field").classList.toggle("hidden", !isInvoice);
+      document.getElementById("month-field").classList.toggle("hidden", isRepay || !isPeriod);
+      document.getElementById("year-field").classList.toggle("hidden", isRepay || !isPeriod);
+      document.getElementById("invoice-field").classList.toggle("hidden", isRepay || !isInvoice);
       document.getElementById("comment-field").classList.remove("hidden");
-      document.getElementById("payment-field").classList.toggle("hidden", state.recordType !== "Кредит");
-      document.getElementById("issue-field").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("payment-field").classList.toggle("hidden", !isRepay);
+      document.getElementById("issue-field").classList.toggle("hidden", isRepay || !isDebtIssue);
       document.getElementById("issue-label").textContent = borrowed ? "Дата получения" : "Дата выдачи";
-      document.getElementById("return-field").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("return-field").classList.toggle("hidden", isRepay || !isDebtIssue);
       document.getElementById("return-label").textContent = borrowed ? "Срок возврата (необязательно)" : "Срок возврата";
-      document.getElementById("rate-field").classList.toggle("hidden", !isDebtIssue);
-      document.getElementById("profit-preview").classList.toggle("hidden", !isDebtIssue);
+      document.getElementById("rate-field").classList.toggle("hidden", isRepay || !isDebtIssue);
+      document.getElementById("profit-preview").classList.toggle("hidden", isRepay || !isDebtIssue);
+      document.getElementById("payments-panel").classList.toggle("hidden", !isEditing);
       document.getElementById("side-out").classList.toggle("active", state.loanSide !== "in");
       document.getElementById("side-in").classList.toggle("active", state.loanSide === "in");
-      document.getElementById("type-debit").textContent = isDebt ? "Начисление" : "Дебет";
-      document.getElementById("type-credit").textContent = isDebt ? "Погашение" : "Кредит";
+      document.getElementById("type-debit").textContent = "Долг";
+      document.getElementById("type-credit").textContent = "Возврат";
+      const saveBtn = document.querySelector("#record-form button[type='submit']");
+      if (saveBtn) saveBtn.textContent = isRepay ? "Внести выплату" : "Сохранить";
+      if (isEditing) renderPaymentsPanel();
       updateProfitPreview();
     }
 
@@ -2035,6 +2328,23 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       state.recordType = type;
       document.getElementById("type-debit").classList.toggle("active", type === "Дебет");
       document.getElementById("type-credit").classList.toggle("active", type === "Кредит");
+      if (type === "Кредит") {
+        if (!state.repayTargetId) {
+          const cat = currentCategory();
+          const first = debtRecords(state.contractor).find((r) => {
+            if (isFullyPaid(r)) return false;
+            if (state.tab === "rental") return r.category === "Аренда помещения" && r.subCategory === state.subTab;
+            return r.category === cat;
+          }) || debtRecords(state.contractor).find((r) => !isFullyPaid(r));
+          state.repayTargetId = first ? first.id : null;
+        }
+        fillDebtTarget(state.repayTargetId);
+        const rec = currentRecords().find((r) => r.id === state.repayTargetId);
+        if (rec) {
+          const left = remainingOf(rec);
+          if (left > 0.009) document.getElementById("field-amount").value = String(left);
+        }
+      }
       syncRecordFields();
     }
 
@@ -2043,12 +2353,25 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       syncRecordFields();
     }
 
-    function openRecordModal(id) {
+    function paymentMethodOptions(selected) {
+      fillSelect(document.getElementById("field-payment"), [
+        { value: "", label: "Выберите способ оплаты" },
+        ...PAYMENT_METHODS
+      ], selected || "");
+      fillSelect(document.getElementById("pay-method"), [
+        { value: "", label: "Выберите способ оплаты" },
+        ...PAYMENT_METHODS
+      ], "");
+    }
+
+    function openRecordModal(id, opts) {
+      const options = opts || {};
       const form = document.getElementById("record-form");
       form.reset();
       document.getElementById("record-error").classList.remove("show");
-      state.editingId = id || null;
-      document.getElementById("record-title").textContent = id ? "Редактировать запись" : "Добавить запись";
+      document.getElementById("pay-error").classList.remove("show");
+      state.editingId = options.repay ? null : (id || null);
+      state.repayTargetId = options.repay ? (options.debtId || id || null) : null;
 
       fillSelect(document.getElementById("field-category"), availableCategories(state.contractor), currentCategory());
       fillSelect(document.getElementById("field-subcategory"), RENTAL_SUBS, state.subTab || "Коммуналка");
@@ -2056,15 +2379,31 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const years = [];
       for (let y = 2020; y <= 2030; y++) years.push(String(y));
       fillSelect(document.getElementById("field-year"), years, String(new Date().getFullYear()));
-      fillSelect(document.getElementById("field-payment"), [
-        { value: "", label: "Выберите способ оплаты" },
-        ...PAYMENT_METHODS
-      ], "");
+      paymentMethodOptions("");
 
       document.getElementById("field-date").value = todayIso();
       document.getElementById("field-issue").value = todayIso();
       document.getElementById("field-rate").value = "0";
+      document.getElementById("pay-date").value = todayIso();
+      document.getElementById("pay-amount").value = "";
+      document.getElementById("pay-comment").value = "";
       state.loanSide = "out";
+
+      if (options.repay) {
+        document.getElementById("record-title").textContent = "Внести выплату";
+        fillDebtTarget(state.repayTargetId);
+        setRecordType("Кредит");
+        const rec = currentRecords().find((r) => r.id === state.repayTargetId);
+        if (rec) {
+          const left = remainingOf(rec);
+          if (left > 0.009) document.getElementById("field-amount").value = String(left);
+        }
+        document.getElementById("record-overlay").classList.add("open");
+        document.getElementById("field-amount").focus();
+        return;
+      }
+
+      document.getElementById("record-title").textContent = id ? "Долг" : "Добавить запись";
       setRecordType("Дебет");
 
       if (id) {
@@ -2077,7 +2416,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           document.getElementById("field-amount").value = rec.amount;
           document.getElementById("field-date").value = rec.date || "";
           state.loanSide = rec.loanSide === "in" ? "in" : "out";
-          setRecordType(rec.type || "Дебет");
           if (rec.month) {
             const [monthName, year] = rec.month.split(" ");
             if (MONTHS.includes(monthName)) document.getElementById("field-month").value = monthName;
@@ -2087,10 +2425,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           }
           document.getElementById("field-invoice").value = rec.invoiceNumber || "";
           document.getElementById("field-comment").value = rec.comment || "";
-          if (rec.paymentMethod) document.getElementById("field-payment").value = rec.paymentMethod;
           document.getElementById("field-issue").value = rec.issueDate || rec.date || "";
           document.getElementById("field-return").value = rec.returnDate || "";
           document.getElementById("field-rate").value = rec.interestRate ?? 0;
+          const left = remainingOf(rec);
+          document.getElementById("pay-amount").value = left > 0.009 ? String(left) : "";
         }
       }
 
@@ -2102,46 +2441,88 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function closeRecordModal() {
       document.getElementById("record-overlay").classList.remove("open");
       state.editingId = null;
+      state.repayTargetId = null;
+    }
+
+    function submitRepayment() {
+      const error = document.getElementById("record-error");
+      const amount = Number(document.getElementById("field-amount").value);
+      const debtId = document.getElementById("field-debt-target").value;
+      const date = document.getElementById("field-date").value;
+      const paymentMethod = document.getElementById("field-payment").value;
+      if (!debtId) {
+        error.textContent = "Выберите долг";
+        error.classList.add("show");
+        return;
+      }
+      if (!document.getElementById("field-amount").value || Number.isNaN(amount) || amount <= 0) {
+        error.textContent = "Укажите сумму выплаты";
+        error.classList.add("show");
+        return;
+      }
+      if (!date) {
+        error.textContent = "Укажите дату выплаты";
+        error.classList.add("show");
+        return;
+      }
+      if (!paymentMethod) {
+        error.textContent = "Укажите способ оплаты";
+        error.classList.add("show");
+        return;
+      }
+      const ok = addPaymentToDebt(debtId, {
+        id: uid(),
+        date,
+        amount,
+        paymentMethod,
+        comment: document.getElementById("field-comment").value.trim()
+      });
+      if (!ok) {
+        error.textContent = "Не удалось найти выбранный долг";
+        error.classList.add("show");
+        return;
+      }
+      closeRecordModal();
+      render();
+      showToast("Выплата внесена");
     }
 
     function submitRecord(event) {
       event.preventDefault();
       const error = document.getElementById("record-error");
+      error.classList.remove("show");
+      if (!state.editingId && state.recordType === "Кредит") {
+        submitRepayment();
+        return;
+      }
       const amount = Number(document.getElementById("field-amount").value);
       const category = document.getElementById("field-category").value;
       const isDebt = category === "Деньги в долг";
       const isInvoice = category === "Счета";
       const isPeriod = category === "Аренда помещения" || category === "Аренда ДТФ";
-      const isCredit = state.recordType === "Кредит";
       const borrowed = isDebt && state.loanSide === "in";
       const issueDate = document.getElementById("field-issue").value || null;
       const returnDate = document.getElementById("field-return").value || null;
-      const date = isDebt && !isCredit ? issueDate : document.getElementById("field-date").value;
+      const date = isDebt ? issueDate : document.getElementById("field-date").value;
       if (!document.getElementById("field-amount").value || Number.isNaN(amount) || amount <= 0) {
         error.textContent = "Укажите сумму";
         error.classList.add("show");
         return;
       }
       if (!date) {
-        error.textContent = isDebt && !isCredit
+        error.textContent = isDebt
           ? (borrowed ? "Укажите дату получения" : "Укажите дату выдачи")
-          : (isDebt ? (borrowed ? "Укажите дату возврата" : "Укажите дату погашения") : "Укажите дату");
+          : "Укажите дату";
         error.classList.add("show");
         return;
       }
-      if (isDebt && !isCredit && !borrowed && !returnDate) {
+      if (isDebt && !borrowed && !returnDate) {
         error.textContent = "Укажите срок возврата";
         error.classList.add("show");
         return;
       }
-      if (isDebt && !isCredit && returnDate && returnDate < date) {
+      if (isDebt && returnDate && returnDate < date) {
         error.textContent = "Срок возврата не может быть раньше даты выдачи";
-        error.classList.add("show");
-        return;
-      }
-      const paymentMethod = isCredit ? document.getElementById("field-payment").value : null;
-      if (isCredit && !paymentMethod) {
-        error.textContent = "Укажите способ оплаты";
         error.classList.add("show");
         return;
       }
@@ -2150,24 +2531,26 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const monthName = document.getElementById("field-month").value;
       const year = Number(document.getElementById("field-year").value);
       const interestRate = Number(document.getElementById("field-rate").value) || 0;
+      const existing = state.editingId ? currentRecords().find((r) => r.id === state.editingId) : null;
 
       const record = {
         id: state.editingId || uid(),
         category,
         subCategory,
-        type: state.recordType,
+        type: "Дебет",
         amount,
         date,
         month: isPeriod ? `${monthName} ${year}` : null,
         year: isPeriod ? year : null,
         invoiceNumber: isInvoice ? document.getElementById("field-invoice").value.trim() : null,
-        paymentMethod,
+        paymentMethod: null,
         comment: document.getElementById("field-comment").value.trim(),
-        issueDate: isDebt && !isCredit ? issueDate : null,
-        returnDate: isDebt && !isCredit ? returnDate : null,
-        interestRate: isDebt && !isCredit ? interestRate : null,
+        issueDate: isDebt ? issueDate : null,
+        returnDate: isDebt ? returnDate : null,
+        interestRate: isDebt ? interestRate : null,
         loanSide: isDebt ? (borrowed ? "in" : "out") : null,
-        profit: isDebt && !isCredit ? calcProfit(amount, interestRate, issueDate, returnDate) : 0
+        profit: isDebt ? calcProfit(amount, interestRate, issueDate, returnDate) : 0,
+        payments: existing && Array.isArray(existing.payments) ? existing.payments : []
       };
 
       const list = db.contractors[state.contractor].records;
@@ -2177,13 +2560,63 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       saveData(db);
       closeRecordModal();
       render();
-      showToast(idx >= 0 ? "Запись обновлена" : "Запись сохранена");
+      showToast(idx >= 0 ? "Долг обновлён" : "Долг сохранён");
+    }
+
+    function submitInlinePayment() {
+      const error = document.getElementById("pay-error");
+      error.classList.remove("show");
+      if (!state.editingId) return;
+      const amount = Number(document.getElementById("pay-amount").value);
+      const date = document.getElementById("pay-date").value;
+      const paymentMethod = document.getElementById("pay-method").value;
+      if (!document.getElementById("pay-amount").value || Number.isNaN(amount) || amount <= 0) {
+        error.textContent = "Укажите сумму выплаты";
+        error.classList.add("show");
+        return;
+      }
+      if (!date) {
+        error.textContent = "Укажите дату выплаты";
+        error.classList.add("show");
+        return;
+      }
+      if (!paymentMethod) {
+        error.textContent = "Укажите способ оплаты";
+        error.classList.add("show");
+        return;
+      }
+      const ok = addPaymentToDebt(state.editingId, {
+        id: uid(),
+        date,
+        amount,
+        paymentMethod,
+        comment: document.getElementById("pay-comment").value.trim()
+      });
+      if (!ok) {
+        error.textContent = "Не удалось добавить выплату";
+        error.classList.add("show");
+        return;
+      }
+      document.getElementById("pay-amount").value = "";
+      document.getElementById("pay-comment").value = "";
+      document.getElementById("pay-date").value = todayIso();
+      document.getElementById("pay-method").value = "";
+      render();
+      renderPaymentsPanel();
+      showToast("Выплата внесена");
     }
 
     function askDelete(id) {
       state.pendingDelete = { kind: "record", id };
-      document.getElementById("confirm-title").textContent = "Удалить запись?";
-      document.getElementById("confirm-text").textContent = "Это действие нельзя отменить.";
+      document.getElementById("confirm-title").textContent = "Удалить долг?";
+      document.getElementById("confirm-text").textContent = "Будут удалены долг и все выплаты по нему.";
+      document.getElementById("confirm-overlay").classList.add("open");
+    }
+
+    function askDeletePayment(debtId, paymentId) {
+      state.pendingDelete = { kind: "payment", debtId, id: paymentId };
+      document.getElementById("confirm-title").textContent = "Удалить выплату?";
+      document.getElementById("confirm-text").textContent = "Выплата будет снята с этого долга.";
       document.getElementById("confirm-overlay").classList.add("open");
     }
 
@@ -2218,6 +2651,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         showToast("Карточка удалена");
         return;
       }
+      if (pending.kind === "payment") {
+        const rec = currentRecords().find((r) => r.id === pending.debtId);
+        if (rec) {
+          rec.payments = (rec.payments || []).filter((p) => p.id !== pending.id);
+        }
+        db.deletedPaymentIds = db.deletedPaymentIds || [];
+        if (pending.id && !db.deletedPaymentIds.includes(pending.id)) db.deletedPaymentIds.push(pending.id);
+        saveData(db);
+        state.pendingDelete = null;
+        document.getElementById("confirm-overlay").classList.remove("open");
+        render();
+        if (state.editingId) renderPaymentsPanel();
+        showToast("Выплата удалена");
+        return;
+      }
       const id = pending.id;
       if (!id) return;
       db.deletedRecordIds = db.deletedRecordIds || [];
@@ -2227,7 +2675,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       state.pendingDelete = null;
       document.getElementById("confirm-overlay").classList.remove("open");
       render();
-      showToast("Запись удалена");
+      showToast("Долг удалён");
     }
 
     function openContractorModal() {
@@ -2314,6 +2762,15 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     });
     document.getElementById("type-debit").addEventListener("click", () => setRecordType("Дебет"));
     document.getElementById("type-credit").addEventListener("click", () => setRecordType("Кредит"));
+    document.getElementById("field-debt-target").addEventListener("change", () => {
+      state.repayTargetId = document.getElementById("field-debt-target").value || null;
+      const rec = currentRecords().find((r) => r.id === state.repayTargetId);
+      if (rec) {
+        const left = remainingOf(rec);
+        if (left > 0.009) document.getElementById("field-amount").value = String(left);
+      }
+    });
+    document.getElementById("pay-add").addEventListener("click", submitInlinePayment);
     document.getElementById("side-out").addEventListener("click", () => setLoanSide("out"));
     document.getElementById("side-in").addEventListener("click", () => setLoanSide("in"));
     document.getElementById("contractor-form").addEventListener("submit", submitContractor);
