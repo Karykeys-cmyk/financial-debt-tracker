@@ -1927,12 +1927,26 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return debtRecords(state.contractor).some((r) => isFullyPaid(r) && recordMatchesSearch(r, q) && inSelectedPeriod(r));
     }
 
+    function paymentToast(result, assigned) {
+      const leftover = Number(result?.leftover) || 0;
+      if (leftover > 0.009) {
+        return "Долг погашен. Остаток " + formatMoney(leftover) + " ушёл во вкладку «Требует сортировки»";
+      }
+      if (result?.rec && isFullyPaid(result.rec)) {
+        return assigned
+          ? "Выплата привязана, долг погашен"
+          : "Долг погашен — смотрите во вкладке «Выплачено»";
+      }
+      return assigned ? "Выплата привязана к долгу" : "Выплата внесена";
+    }
+
     function showToast(text) {
       const el = document.getElementById("toast");
       el.textContent = text;
       el.classList.add("show");
       clearTimeout(showToast.timer);
-      showToast.timer = setTimeout(() => el.classList.remove("show"), 2200);
+      const ms = String(text || "").length > 55 ? 4200 : 2200;
+      showToast.timer = setTimeout(() => el.classList.remove("show"), ms);
     }
 
     function render() {
@@ -2499,13 +2513,43 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
     }
 
-    function addPaymentToDebt(debtId, payment) {
-      const rec = currentRecords().find((r) => r.id === debtId);
-      if (!rec) return null;
+    function addPaymentToDebt(debtId, payment, options) {
+      return applyPaymentToDebt(state.contractor, debtId, payment, options);
+    }
+
+    function applyPaymentToDebt(name, debtId, payment, options) {
+      const contractor = db.contractors[name];
+      const rec = (contractor?.records || []).find((r) => r.id === debtId);
+      if (!rec || !payment) return null;
       if (!Array.isArray(rec.payments)) rec.payments = [];
-      rec.payments.push(payment);
+      if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
+      const due = Math.max(0, remainingOf(rec));
+      const amount = Math.round((Number(payment.amount) || 0) * 100) / 100;
+      const applied = due <= 0.009 ? 0 : Math.round(Math.min(amount, due) * 100) / 100;
+      const leftover = Math.round((amount - applied) * 100) / 100;
+      if (options && options.removeUnsortedId) {
+        contractor.unsortedPayments = contractor.unsortedPayments.filter((p) => p.id !== options.removeUnsortedId);
+      }
+      if (applied > 0.009) {
+        rec.payments.push({
+          id: payment.id || uid(),
+          date: payment.date,
+          amount: applied,
+          paymentMethod: payment.paymentMethod || "",
+          comment: payment.comment || ""
+        });
+      }
+      if (leftover > 0.009) {
+        contractor.unsortedPayments.push({
+          id: uid(),
+          date: payment.date,
+          amount: leftover,
+          paymentMethod: payment.paymentMethod || "",
+          comment: payment.comment || ""
+        });
+      }
       saveData(db);
-      return rec;
+      return { rec, applied, leftover };
     }
 
     function syncRecordFields() {
@@ -2708,21 +2752,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
-      const rec = addPaymentToDebt(debtId, {
+      const result = addPaymentToDebt(debtId, {
         id: uid(),
         date,
         amount,
         paymentMethod,
         comment: document.getElementById("field-comment").value.trim()
       });
-      if (!rec) {
+      if (!result) {
         error.textContent = "Не удалось найти выбранный долг";
         error.classList.add("show");
         return;
       }
       closeRecordModal();
       render();
-      showToast(isFullyPaid(rec) ? "Долг погашен — смотрите во вкладке «Выплачено»" : "Выплата внесена");
+      showToast(paymentToast(result));
     }
 
     function submitRecord(event) {
@@ -2823,19 +2867,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         error.classList.add("show");
         return;
       }
-      const rec = addPaymentToDebt(state.editingId, {
+      const result = addPaymentToDebt(state.editingId, {
         id: uid(),
         date,
         amount,
         paymentMethod,
         comment: document.getElementById("pay-comment").value.trim()
       });
-      if (!rec) {
+      if (!result) {
         error.textContent = "Не удалось добавить выплату";
         error.classList.add("show");
         return;
       }
-      const closed = isFullyPaid(rec);
+      const closed = isFullyPaid(result.rec) || result.leftover > 0.009;
       document.getElementById("pay-amount").value = "";
       document.getElementById("pay-comment").value = "";
       document.getElementById("pay-date").value = todayIso();
@@ -2843,7 +2887,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (closed) closeRecordModal();
       render();
       if (!closed && state.editingId) renderPaymentsPanel();
-      showToast(closed ? "Долг погашен — смотрите во вкладке «Выплачено»" : "Выплата внесена");
+      showToast(paymentToast(result));
     }
 
     function askDelete(id) {
@@ -2910,19 +2954,20 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       const contractor = db.contractors[state.contractor];
       const pay = (contractor.unsortedPayments || []).find((p) => p.id === payId);
-      const rec = (contractor.records || []).find((r) => r.id === debtId);
-      if (!pay || !rec) {
+      if (!pay) {
         error.textContent = "Не удалось привязать выплату";
         error.classList.add("show");
         return;
       }
-      if (!Array.isArray(rec.payments)) rec.payments = [];
-      rec.payments.push(pay);
-      contractor.unsortedPayments = (contractor.unsortedPayments || []).filter((p) => p.id !== payId);
-      saveData(db);
+      const result = applyPaymentToDebt(state.contractor, debtId, pay, { removeUnsortedId: payId });
+      if (!result) {
+        error.textContent = "Не удалось привязать выплату";
+        error.classList.add("show");
+        return;
+      }
       closeSortAssign();
       render();
-      showToast(isFullyPaid(rec) ? "Выплата привязана, долг погашен" : "Выплата привязана к долгу");
+      showToast(paymentToast(result, true));
     }
 
     function askDeleteContractor(name) {
