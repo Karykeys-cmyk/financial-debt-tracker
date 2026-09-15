@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="54" />
+  <meta name="app-build" content="55" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=54" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=54" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=54" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=54" />
+  <link rel="manifest" href="manifest.webmanifest?v=55" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=55" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=55" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=55" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -297,8 +297,8 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      margin-bottom: 18px;
-      max-height: 240px;
+      margin-bottom: 12px;
+      max-height: min(420px, 52vh);
       overflow: auto;
     }
 
@@ -1272,7 +1272,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=54" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=55" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1413,40 +1413,47 @@
   </div>
 
   <div class="overlay" id="cabinet-overlay" role="dialog" aria-modal="true">
-    <form class="modal" id="cabinet-form" novalidate>
-      <h2>Личные кабинеты</h2>
-      <div class="cabinet-list" id="cabinet-list"></div>
-      <div class="cabinet-form-title">Новый кабинет</div>
-      <div class="field">
-        <label>Тип кабинета</label>
-        <div class="type-toggle">
-          <button type="button" class="active debit" id="cab-role-user">Нахлебничек <span class="cab-heart">♥</span></button>
-          <button type="button" class="credit" id="cab-role-debtor">Арендатор денег</button>
+    <div class="modal" id="cabinet-dialog">
+      <h2 id="cabinet-title">Личные кабинеты</h2>
+      <div id="cabinet-browse">
+        <div class="cabinet-list" id="cabinet-list"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cabinet-close">Закрыть</button>
+          <button type="button" class="btn-primary" id="cabinet-start-create">Создать кабинет</button>
         </div>
       </div>
-      <p class="cab-role-hint" id="cab-role-hint"></p>
-      <div class="field">
-        <label for="field-cab-login">Логин</label>
-        <input id="field-cab-login" type="text" autocomplete="off" maxlength="40" placeholder="латиницей" />
-      </div>
-      <div class="field">
-        <label for="field-cab-password">Пароль</label>
-        <input id="field-cab-password" type="text" autocomplete="off" maxlength="60" />
-      </div>
-      <div class="field" id="cab-name-field">
-        <label for="field-cab-name">Имя в кабинете</label>
-        <input id="field-cab-name" type="text" maxlength="60" placeholder="Как подписывать кабинет" />
-      </div>
-      <div class="field hidden" id="cab-contractor-field">
-        <label for="field-cab-contractor">Карточка контрагента</label>
-        <select id="field-cab-contractor"></select>
-      </div>
-      <div class="error" id="cabinet-error"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn-secondary" id="cabinet-cancel">Закрыть</button>
-        <button type="submit" class="btn-primary">Создать кабинет</button>
-      </div>
-    </form>
+      <form id="cabinet-form" class="hidden" novalidate>
+        <div class="field">
+          <label>Тип кабинета</label>
+          <div class="type-toggle">
+            <button type="button" class="active debit" id="cab-role-user">Нахлебничек <span class="cab-heart">♥</span></button>
+            <button type="button" class="credit" id="cab-role-debtor">Арендатор денег</button>
+          </div>
+        </div>
+        <p class="cab-role-hint" id="cab-role-hint"></p>
+        <div class="field">
+          <label for="field-cab-login">Логин</label>
+          <input id="field-cab-login" type="text" autocomplete="off" maxlength="40" placeholder="латиницей" />
+        </div>
+        <div class="field">
+          <label for="field-cab-password">Пароль</label>
+          <input id="field-cab-password" type="text" autocomplete="off" maxlength="60" />
+        </div>
+        <div class="field" id="cab-name-field">
+          <label for="field-cab-name">Имя в кабинете</label>
+          <input id="field-cab-name" type="text" maxlength="60" placeholder="Как подписывать кабинет" />
+        </div>
+        <div class="field hidden" id="cab-contractor-field">
+          <label for="field-cab-contractor">Карточка контрагента</label>
+          <select id="field-cab-contractor"></select>
+        </div>
+        <div class="error" id="cabinet-error"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cabinet-cancel">К списку</button>
+          <button type="submit" class="btn-primary">Создать кабинет</button>
+        </div>
+      </form>
+    </div>
   </div>
 
       <div class="overlay" id="sort-overlay" role="dialog" aria-modal="true">
@@ -1534,7 +1541,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "54";
+    const APP_BUILD = "55";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -4289,14 +4296,39 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       syncCabinetFields();
     }
 
-    function openCabinetModal() {
+    function setCabinetCreateMode(on) {
+      const creating = Boolean(on);
+      document.getElementById("cabinet-browse").classList.toggle("hidden", creating);
+      document.getElementById("cabinet-form").classList.toggle("hidden", !creating);
+      const title = document.getElementById("cabinet-title");
+      if (title) title.textContent = creating ? "Новый кабинет" : "Личные кабинеты";
+    }
+
+    function openCabinetCreate() {
       if (!isAdmin()) return;
       state.cabinetRole = "user";
       document.getElementById("cabinet-form").reset();
       document.getElementById("cabinet-error").classList.remove("show");
       fillCabinetModal();
-      document.getElementById("cabinet-overlay").classList.add("open");
+      setCabinetCreateMode(true);
+      syncCabinetFields();
       document.getElementById("field-cab-login").focus();
+    }
+
+    function closeCabinetCreate() {
+      document.getElementById("cabinet-form").reset();
+      document.getElementById("cabinet-error").classList.remove("show");
+      state.cabinetRole = "user";
+      setCabinetCreateMode(false);
+      fillCabinetModal();
+    }
+
+    function openCabinetModal() {
+      if (!isAdmin()) return;
+      document.getElementById("cabinet-error").classList.remove("show");
+      fillCabinetModal();
+      setCabinetCreateMode(false);
+      document.getElementById("cabinet-overlay").classList.add("open");
     }
 
     function closeCabinetModal() {
@@ -4358,10 +4390,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       db.cabinets = (db.cabinets || []).filter((c) => c.login !== login);
       db.cabinets.push(cab);
       saveData(db);
-      document.getElementById("cabinet-form").reset();
-      state.cabinetRole = "user";
-      document.getElementById("cabinet-error").classList.remove("show");
-      fillCabinetModal();
+      closeCabinetCreate();
       showToast(cab.role === "debtor"
         ? "Кабинет арендатора денег создан: " + contractorName + " увидит карточку «" + ownerName() + "» и сможет пользоваться интерфейсом"
         : "Кабинет нахлебничка ♥ создан");
@@ -4406,7 +4435,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("contractor-form").addEventListener("submit", submitContractor);
     document.getElementById("contractor-cancel").addEventListener("click", closeContractorModal);
     document.getElementById("cabinet-form").addEventListener("submit", submitCabinet);
-    document.getElementById("cabinet-cancel").addEventListener("click", closeCabinetModal);
+    document.getElementById("cabinet-cancel").addEventListener("click", closeCabinetCreate);
+    document.getElementById("cabinet-close").addEventListener("click", closeCabinetModal);
+    document.getElementById("cabinet-start-create").addEventListener("click", openCabinetCreate);
     document.getElementById("cab-role-user").addEventListener("click", () => {
       state.cabinetRole = "user";
       syncCabinetFields();
