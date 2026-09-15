@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="53" />
+  <meta name="app-build" content="54" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=53" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=53" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=53" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=53" />
+  <link rel="manifest" href="manifest.webmanifest?v=54" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=54" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=54" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=54" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1125,6 +1125,24 @@
       font-weight: 700;
     }
 
+    .cab-role-hint {
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+      line-height: 1.45;
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .cab-role-hint strong {
+      display: block;
+      color: var(--text);
+      font-weight: 650;
+      margin-bottom: 4px;
+    }
+
     .type-toggle button.active.debit {
       background: rgba(110, 200, 255, 0.16);
       color: var(--debit);
@@ -1254,7 +1272,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=53" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=54" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1397,7 +1415,6 @@
   <div class="overlay" id="cabinet-overlay" role="dialog" aria-modal="true">
     <form class="modal" id="cabinet-form" novalidate>
       <h2>Личные кабинеты</h2>
-      <p class="confirm-text">Нахлебничек ♥ получает свою книгу учёта. Арендатор денег — тоже полноценный кабинет, только у него заранее есть карточка долга: он видит её с именем «Кариша».</p>
       <div class="cabinet-list" id="cabinet-list"></div>
       <div class="cabinet-form-title">Новый кабинет</div>
       <div class="field">
@@ -1407,6 +1424,7 @@
           <button type="button" class="credit" id="cab-role-debtor">Арендатор денег</button>
         </div>
       </div>
+      <p class="cab-role-hint" id="cab-role-hint"></p>
       <div class="field">
         <label for="field-cab-login">Логин</label>
         <input id="field-cab-login" type="text" autocomplete="off" maxlength="40" placeholder="латиницей" />
@@ -1516,7 +1534,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "53";
+    const APP_BUILD = "54";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -4208,12 +4226,28 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       );
     }
 
+    function cabinetRoleHintHtml() {
+      if (state.cabinetRole === "debtor") {
+        const who = document.getElementById("field-cab-contractor")?.value || "";
+        const card = who
+          ? "«" + escapeHtml(who) + "» войдёт и увидит карточку «" + escapeHtml(ownerName()) + "» — те же цифры, что у вас в этой карточке."
+          : "Выберите контрагента: он войдёт и увидит карточку долга с вашим именем «" + escapeHtml(ownerName()) + "» — как вы видите его карточку у себя.";
+        return "<strong>Что получает арендатор денег</strong>" +
+          "Полноценный кабинет, только карточка с долгом уже есть. " + card +
+          " Дальше может смотреть прибыль за месяц, работать с записями и добавлять своих арендаторов денег — только «Деньги в долг».";
+      }
+      return "<strong>Что получает нахлебничек <span class=\"cab-heart\">♥</span></strong>" +
+        "Свой кабинет с пустой книгой: прибыль за месяц и свои карточки. Может добавлять арендаторов денег — только «Деньги в долг», без аренды, ДТФ и счетов.";
+    }
+
     function syncCabinetFields() {
       const debtor = state.cabinetRole === "debtor";
       document.getElementById("cab-role-user").classList.toggle("active", !debtor);
       document.getElementById("cab-role-debtor").classList.toggle("active", debtor);
       document.getElementById("cab-name-field").classList.toggle("hidden", debtor);
       document.getElementById("cab-contractor-field").classList.toggle("hidden", !debtor);
+      const hint = document.getElementById("cab-role-hint");
+      if (hint) hint.innerHTML = cabinetRoleHintHtml();
     }
 
     function fillCabinetModal() {
@@ -4380,6 +4414,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("cab-role-debtor").addEventListener("click", () => {
       state.cabinetRole = "debtor";
       syncCabinetFields();
+    });
+    document.getElementById("field-cab-contractor").addEventListener("change", () => {
+      if (state.cabinetRole === "debtor") syncCabinetFields();
     });
     document.getElementById("cabinet-overlay").addEventListener("click", (e) => {
       if (e.target.id === "cabinet-overlay") closeCabinetModal();
