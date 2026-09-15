@@ -1524,6 +1524,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             });
           });
         }
+        const localUnsortedIds = new Set(
+          (local.contractors?.[name]?.unsortedPayments || []).map((p) => p && p.id).filter(Boolean)
+        );
+        if (localUnsortedIds.size) {
+          map.forEach((rec) => {
+            rec.payments = (rec.payments || []).filter((p) => !localUnsortedIds.has(p.id));
+          });
+        }
         out.contractors[name] = {
           records: [...map.values()],
           unsortedPayments: (() => {
@@ -2505,7 +2513,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="meta">${escapeHtml(p.paymentMethod || "—")}${p.comment ? " · " + escapeHtml(p.comment) : ""}</div>
           </div>
           <span></span>
-          <button type="button" class="icon-btn danger" data-delete-pay="${escapeHtml(p.id)}" title="Удалить выплату" aria-label="Удалить выплату">🗑️</button>
+          <button type="button" class="icon-btn danger" data-delete-pay="${escapeHtml(p.id)}" title="Снять с долга" aria-label="Снять выплату с долга">🗑️</button>
         </div>
       `).join("") : `<div class="empty" style="padding:10px 0;">Выплат пока нет</div>`;
       list.querySelectorAll("[data-delete-pay]").forEach((btn) => {
@@ -2550,6 +2558,29 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       saveData(db);
       return { rec, applied, leftover };
+    }
+
+    function returnPaymentToUnsorted(name, debtId, paymentId) {
+      const contractor = db.contractors[name];
+      const rec = (contractor?.records || []).find((r) => r.id === debtId);
+      if (!rec) return null;
+      const pay = (rec.payments || []).find((p) => p.id === paymentId);
+      if (!pay) return null;
+      rec.payments = (rec.payments || []).filter((p) => p.id !== paymentId);
+      if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
+      const item = normalizePayment(pay) || {
+        id: pay.id || uid(),
+        date: pay.date,
+        amount: Number(pay.amount) || 0,
+        paymentMethod: pay.paymentMethod || "",
+        comment: pay.comment || ""
+      };
+      if (!item.id) item.id = uid();
+      if (!contractor.unsortedPayments.some((p) => p.id === item.id)) {
+        contractor.unsortedPayments.push(item);
+      }
+      saveData(db);
+      return item;
     }
 
     function syncRecordFields() {
@@ -2890,25 +2921,30 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       showToast(paymentToast(result));
     }
 
+    function openConfirm(title, text, okLabel) {
+      document.getElementById("confirm-title").textContent = title;
+      document.getElementById("confirm-text").textContent = text;
+      document.getElementById("confirm-ok").textContent = okLabel || "Удалить";
+      document.getElementById("confirm-overlay").classList.add("open");
+    }
+
     function askDelete(id) {
       state.pendingDelete = { kind: "record", id };
-      document.getElementById("confirm-title").textContent = "Удалить долг?";
-      document.getElementById("confirm-text").textContent = "Будут удалены долг и все выплаты по нему.";
-      document.getElementById("confirm-overlay").classList.add("open");
+      openConfirm("Удалить долг?", "Будут удалены долг и все выплаты по нему.");
     }
 
     function askDeletePayment(debtId, paymentId) {
       state.pendingDelete = { kind: "payment", debtId, id: paymentId };
-      document.getElementById("confirm-title").textContent = "Удалить выплату?";
-      document.getElementById("confirm-text").textContent = "Выплата будет снята с этого долга.";
-      document.getElementById("confirm-overlay").classList.add("open");
+      openConfirm(
+        "Снять выплату с долга?",
+        "Выплата вернётся во вкладку «Требует сортировки», и её можно будет привязать к другому долгу.",
+        "Снять"
+      );
     }
 
     function askDeleteUnsorted(id) {
       state.pendingDelete = { kind: "unsorted", id };
-      document.getElementById("confirm-title").textContent = "Удалить выплату?";
-      document.getElementById("confirm-text").textContent = "Выплата пропадёт из списка «Требует сортировки».";
-      document.getElementById("confirm-overlay").classList.add("open");
+      openConfirm("Удалить выплату?", "Выплата пропадёт из списка «Требует сортировки».");
     }
 
     function openSortAssign(id) {
@@ -2972,9 +3008,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function askDeleteContractor(name) {
       state.pendingDelete = { kind: "contractor", name };
-      document.getElementById("confirm-title").textContent = "Удалить карточку?";
-      document.getElementById("confirm-text").textContent = "Будут удалены контрагент «" + name + "» и все его записи.";
-      document.getElementById("confirm-overlay").classList.add("open");
+      openConfirm("Удалить карточку?", "Будут удалены контрагент «" + name + "» и все его записи.");
     }
 
     function confirmDelete() {
@@ -3006,18 +3040,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         return;
       }
       if (pending.kind === "payment") {
-        const rec = currentRecords().find((r) => r.id === pending.debtId);
-        if (rec) {
-          rec.payments = (rec.payments || []).filter((p) => p.id !== pending.id);
-        }
-        db.deletedPaymentIds = db.deletedPaymentIds || [];
-        if (pending.id && !db.deletedPaymentIds.includes(pending.id)) db.deletedPaymentIds.push(pending.id);
-        saveData(db);
+        const item = returnPaymentToUnsorted(state.contractor, pending.debtId, pending.id);
         state.pendingDelete = null;
         document.getElementById("confirm-overlay").classList.remove("open");
         render();
         if (state.editingId) renderPaymentsPanel();
-        showToast("Выплата удалена");
+        showToast(item
+          ? "Выплата вернулась во вкладку «Требует сортировки»"
+          : "Выплату не удалось снять с долга");
         return;
       }
       if (pending.kind === "unsorted") {
