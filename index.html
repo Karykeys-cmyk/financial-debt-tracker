@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="58" />
+  <meta name="app-build" content="59" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=58" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=58" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=58" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=58" />
+  <link rel="manifest" href="manifest.webmanifest?v=59" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=59" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=59" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=59" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1272,7 +1272,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=58" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=59" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1541,7 +1541,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "58";
+    const APP_BUILD = "59";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -1871,6 +1871,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function recordDue(record) {
       return Math.round(((Number(record.amount) || 0) + loanInterest(record)) * 100) / 100;
+    }
+
+    function recordPrincipal(record) {
+      return Math.round((Number(record && record.amount) || 0) * 100) / 100;
+    }
+
+    function remainingPrincipal(record) {
+      return Math.round(Math.max(0, recordPrincipal(record) - paymentSum(record)) * 100) / 100;
     }
 
     function remainingOf(record) {
@@ -2459,11 +2467,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       let credit = 0;
       records.forEach((r) => {
         if (isBorrowed(r)) return;
-        if (!usePeriod || inSelectedPeriod(r)) debit += recordDue(r);
+        const principal = recordPrincipal(r);
+        if (!usePeriod || inSelectedPeriod(r)) debit += principal;
+        let recCredit = 0;
         (r.payments || []).forEach((p) => {
           if (usePeriod && !inSelectedPeriod(p)) return;
-          credit += Number(p.amount) || 0;
+          recCredit += Number(p.amount) || 0;
         });
+        credit += Math.min(recCredit, principal);
       });
       credit += unsortedSum(name, usePeriod);
       return { debit, credit, saldo: debit - credit };
@@ -2472,7 +2483,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function debitBreakdown(name, usePeriod) {
       let records = debtRecords(name);
       if (usePeriod) records = records.filter(inSelectedPeriod);
-      const add = (pred) => records.reduce((sum, r) => pred(r) ? sum + recordDue(r) : sum, 0);
+      const add = (pred) => records.reduce((sum, r) => pred(r) ? sum + recordPrincipal(r) : sum, 0);
       const rentOnly = add((r) => r.category === "Аренда помещения" && r.subCategory === "Аренда");
       const utilities = add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка");
       const dtf = add((r) => r.category === "Аренда ДТФ");
@@ -2674,7 +2685,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function ourDebt(name) {
       return debtRecords(name)
         .filter(isBorrowed)
-        .reduce((sum, r) => sum + Math.max(0, remainingOf(r)), 0);
+        .reduce((sum, r) => sum + remainingPrincipal(r), 0);
     }
 
     function globalDebtAndProfit() {
