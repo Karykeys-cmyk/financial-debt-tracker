@@ -4,16 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
+  <meta name="app-build" content="37" />
   <title>Финансовый учёт</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Учёт" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest?v=37" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=37" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=37" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=37" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1233,6 +1234,25 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
+    const APP_BUILD = "37";
+    const KEPT_PAYMENTS = {
+      "Даня": [
+        {
+          id: "mtg6yf2h3rlnj9",
+          date: "2026-08-30",
+          amount: 422500.6,
+          paymentMethod: "Взаимозачёт",
+          comment: "АРВТ по счетам 34, 56, 71"
+        },
+        {
+          id: "mtg6pyxw0exme2",
+          date: "2026-08-30",
+          amount: 97200,
+          paymentMethod: "Услугами",
+          comment: "Сбербанк куртки вышивка и шевроны"
+        }
+      ]
+    };
     const DEFAULT_SYNC_URL = "https://sqsnhapkgtdjjkiexfrn.supabase.co";
     const DEFAULT_SYNC_KEY = "sb_publishable_2wQo7nf5W4eBQmiPorV9Kg_u-gjFYb-";
     const SYNC_SQL = `create table if not exists public.finance_state (
@@ -1381,11 +1401,39 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return contractor;
     }
 
+    function restoreKeptPayments(data) {
+      Object.keys(KEPT_PAYMENTS).forEach((name) => {
+        const contractor = data.contractors?.[name];
+        if (!contractor) return;
+        if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
+        const live = new Set();
+        contractor.unsortedPayments.forEach((p) => { if (p && p.id) live.add(p.id); });
+        (contractor.records || []).forEach((r) => {
+          (r.payments || []).forEach((p) => { if (p && p.id) live.add(p.id); });
+        });
+        KEPT_PAYMENTS[name].forEach((item) => {
+          data.deletedPaymentIds = (data.deletedPaymentIds || []).filter((id) => id !== item.id);
+          if (!live.has(item.id)) {
+            contractor.unsortedPayments.unshift({
+              id: item.id,
+              date: item.date,
+              amount: item.amount,
+              paymentMethod: item.paymentMethod || "",
+              comment: item.comment || ""
+            });
+            live.add(item.id);
+          }
+        });
+      });
+      return data;
+    }
+
     function migrateDb(data) {
       if (!data.contractors) data.contractors = {};
       if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
+      restoreKeptPayments(data);
       const live = livePaymentIds(data);
       data.deletedPaymentIds = data.deletedPaymentIds.filter((id) => !live.has(id));
       Object.keys(data.contractors).forEach((name) => {
@@ -3245,7 +3293,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       syncNow();
     }
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js").catch(() => {});
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        return Promise.all(regs.map((reg) => reg.unregister()));
+      }).then(() => navigator.serviceWorker.register("./sw.js?v=" + APP_BUILD)).catch(() => {});
     }
   </script>
 </body>
