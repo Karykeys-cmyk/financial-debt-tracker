@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="42" />
+    <meta name="app-build" content="43" />
   <title>Финансовый учёт</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=42" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=42" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=42" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=42" />
+    <link rel="manifest" href="manifest.webmanifest?v=43" />
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=43" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=43" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=43" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -42,6 +42,18 @@
 
     html, body {
       min-height: 100%;
+    }
+
+    html.overlay-open,
+    body.overlay-open {
+      overflow: hidden;
+    }
+
+    body.overlay-open {
+      position: fixed;
+      width: 100%;
+      left: 0;
+      right: 0;
     }
 
     body {
@@ -853,7 +865,10 @@
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 12px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      overflow: hidden;
+      overscroll-behavior: none;
     }
 
     .overlay.open {
@@ -866,18 +881,39 @@
 
     .modal {
       width: min(520px, 100%);
-      max-height: calc(100vh - 40px);
-      overflow: auto;
+      max-height: calc(100vh - 24px);
+      max-height: calc(100svh - 24px);
+      max-height: calc(100dvh - 24px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
       background: linear-gradient(180deg, rgba(18, 31, 58, 0.96), rgba(10, 22, 40, 0.96));
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 16px;
       box-shadow: var(--shadow);
-      padding: 24px;
+      padding: 20px 24px 16px;
+      overscroll-behavior: contain;
+    }
+
+    .modal:not(:has(.modal-scroll)) {
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .modal h2 {
+      flex-shrink: 0;
       font-size: 1.25rem;
-      margin-bottom: 18px;
+      margin-bottom: 12px;
+    }
+
+    .modal-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding-right: 4px;
     }
 
     .field {
@@ -965,7 +1001,10 @@
     .modal-actions {
       display: flex;
       gap: 10px;
-      margin-top: 8px;
+      flex-shrink: 0;
+      margin-top: 12px;
+      padding-top: 12px;
+      background: linear-gradient(180deg, rgba(10, 22, 40, 0.88), rgba(10, 22, 40, 0.98));
     }
 
     .btn-primary, .btn-secondary {
@@ -1060,6 +1099,7 @@
   <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
     <form class="modal" id="record-form" novalidate>
       <h2 id="record-title">Добавить запись</h2>
+      <div class="modal-scroll">
       <div class="field" id="type-field">
         <label>Тип</label>
         <div class="type-toggle">
@@ -1105,6 +1145,10 @@
       <div class="field hidden" id="invoice-field">
         <label for="field-invoice">Номер счета</label>
         <input id="field-invoice" type="text" placeholder="Например, СЧ-104" maxlength="40" />
+      </div>
+      <div class="field hidden" id="legal-entity-field">
+        <label for="field-legal-entity">Юрлицо</label>
+        <select id="field-legal-entity"></select>
       </div>
       <div class="field hidden" id="issue-field">
         <label for="field-issue" id="issue-label">Дата выдачи</label>
@@ -1153,6 +1197,7 @@
           <button type="button" class="btn-primary" id="pay-add">Добавить выплату</button>
           <div class="error" id="pay-error"></div>
         </div>
+      </div>
       </div>
       <div class="error" id="record-error"></div>
       <div class="modal-actions">
@@ -1261,7 +1306,7 @@
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
-    const APP_BUILD = "42";
+    const APP_BUILD = "43";
     const KEPT_PAYMENTS = {
       "Даня": [
         {
@@ -1310,6 +1355,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       "Товарами",
       "Взаимозачёт",
       "Другое"
+    ];
+    const LEGAL_ENTITIES = [
+      "ООО «МАКСИЛАЙТ»",
+      "ИП Баляева К.М."
     ];
 
     const state = {
@@ -1367,8 +1416,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!record || record.category !== "Счета") return "";
       const num = normalizeInvoiceNumber(record.invoiceNumber);
       const date = invoiceDateOf(record);
+      const entity = String(record.legalEntity || "").trim();
       if (!num || !date) return "";
-      return num + "\n" + date;
+      return num + "\n" + date + "\n" + entity;
     }
 
     function findDuplicateInvoice(name, record) {
@@ -2063,7 +2113,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         r.date, r.issueDate, r.returnDate,
         formatDate(r.date), formatDate(r.issueDate), formatDate(r.returnDate),
         r.category, r.subCategory, r.type, recordTypeLabel(r),
-        r.comment, r.invoiceNumber, r.month,
+        r.comment, r.invoiceNumber, r.legalEntity, r.month,
         r.amount, formatMoney(r.amount), formatMoney(r.profit),
         formatMoney(remainingOf(r)), formatMoney(paymentSum(r)),
         "остаток", "погашен", "выплата",
@@ -2297,6 +2347,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${escapeHtml(r.subCategory || "—")}
             ${r.month ? `<span class="cell-extra">${escapeHtml(r.month)}</span>` : ""}
             ${r.invoiceNumber ? `<span class="cell-extra">№ ${escapeHtml(r.invoiceNumber)}</span>` : ""}
+            ${r.legalEntity ? `<span class="cell-extra">${escapeHtml(r.legalEntity)}</span>` : ""}
             ${r.issueDate ? `<span class="cell-extra">${isBorrowed(r) ? "получили" : "выдача"} ${formatDate(r.issueDate)}</span>` : ""}
             ${r.returnDate ? `<span class="cell-extra ${overdueIds.has(r.id) ? "overdue-mark" : ""}">вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span>` : (isBorrowed(r) ? `<span class="cell-extra">без срока</span>` : "")}
             ${payCount(r) ? `<span class="cell-extra">${payCount(r)} ${payCount(r) === 1 ? "выплата" : "выплаты"}</span>` : ""}
@@ -2322,7 +2373,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <div class="row"><strong>${formatDate(r.date)}</strong><span class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
           <div class="row"><span>Остаток</span><strong class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</strong></div>
-          <div class="row muted"><span>Выплачено ${formatMoney(paymentSum(r))}</span><span>${r.category === "Деньги в долг" ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit) : (r.month || r.invoiceNumber || "—")}</span></div>
+          <div class="row muted"><span>Выплачено ${formatMoney(paymentSum(r))}</span><span>${r.category === "Деньги в долг" ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit) : (r.month || [r.invoiceNumber ? "№ " + r.invoiceNumber : "", r.legalEntity].filter(Boolean).join(" · ") || "—")}</span></div>
           ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : (isBorrowed(r) ? `<div class="row muted"><span>без срока возврата</span></div>` : "")}
           ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
           <div class="row muted">
@@ -2657,6 +2708,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       else parts.push(r.category || "Долг");
       if (r.subCategory) parts.push(r.subCategory);
       if (r.invoiceNumber) parts.push("№ " + r.invoiceNumber);
+      if (r.legalEntity) parts.push(r.legalEntity);
       if (r.month) parts.push(r.month);
       parts.push(formatDate(r.date || r.issueDate));
       parts.push(formatMoney(r.amount));
@@ -2799,6 +2851,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("month-field").classList.toggle("hidden", isRepay || !isPeriod);
       document.getElementById("year-field").classList.toggle("hidden", isRepay || !isPeriod);
       document.getElementById("invoice-field").classList.toggle("hidden", isRepay || !isInvoice);
+      document.getElementById("legal-entity-field").classList.toggle("hidden", isRepay || !isInvoice);
       document.getElementById("comment-field").classList.remove("hidden");
       document.getElementById("payment-field").classList.toggle("hidden", !isRepay);
       document.getElementById("issue-field").classList.toggle("hidden", isRepay || !isDebtIssue);
@@ -2885,6 +2938,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const years = [];
       for (let y = 2020; y <= 2030; y++) years.push(String(y));
       fillSelect(document.getElementById("field-year"), years, String(new Date().getFullYear()));
+      fillSelect(document.getElementById("field-legal-entity"), [
+        { value: "", label: "Выберите юрлицо" },
+        ...LEGAL_ENTITIES
+      ], "");
       paymentMethodOptions("");
 
       document.getElementById("field-date").value = todayIso();
@@ -2905,6 +2962,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           if (left > 0.009) document.getElementById("field-amount").value = String(left);
         }
         document.getElementById("record-overlay").classList.add("open");
+        const repayScroll = document.querySelector("#record-form .modal-scroll");
+        if (repayScroll) repayScroll.scrollTop = 0;
         document.getElementById("field-amount").focus();
         return;
       }
@@ -2930,6 +2989,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             document.getElementById("field-year").value = String(rec.year);
           }
           document.getElementById("field-invoice").value = rec.invoiceNumber || "";
+          document.getElementById("field-legal-entity").value = rec.legalEntity || "";
           document.getElementById("field-comment").value = rec.comment || "";
           document.getElementById("field-issue").value = rec.issueDate || rec.date || "";
           document.getElementById("field-return").value = rec.returnDate || "";
@@ -2941,6 +3001,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
       syncRecordFields();
       document.getElementById("record-overlay").classList.add("open");
+      const scroller = document.querySelector("#record-form .modal-scroll");
+      if (scroller) scroller.scrollTop = 0;
       document.getElementById("field-amount").focus();
     }
 
@@ -3033,8 +3095,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         return;
       }
       const invoiceNumber = isInvoice ? document.getElementById("field-invoice").value.trim() : null;
+      const legalEntity = isInvoice ? document.getElementById("field-legal-entity").value.trim() : null;
       if (isInvoice && !invoiceNumber) {
         error.textContent = "Укажите номер счета";
+        error.classList.add("show");
+        return;
+      }
+      if (isInvoice && !LEGAL_ENTITIES.includes(legalEntity)) {
+        error.textContent = "Выберите юрлицо";
         error.classList.add("show");
         return;
       }
@@ -3043,10 +3111,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           id: state.editingId || "new",
           category: "Счета",
           invoiceNumber,
-          date
+          date,
+          legalEntity
         });
         if (dup) {
-          error.textContent = "Счёт № " + invoiceNumber + " на " + formatDate(date) + " уже есть. Откройте существующую запись.";
+          error.textContent = "Счёт № " + invoiceNumber + " на " + formatDate(date) + " у " + legalEntity + " уже есть. Откройте существующую запись.";
           error.classList.add("show");
           return;
         }
@@ -3068,6 +3137,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         month: isPeriod ? `${monthName} ${year}` : null,
         year: isPeriod ? year : null,
         invoiceNumber: isInvoice ? invoiceNumber : null,
+        legalEntity: isInvoice ? legalEntity : null,
         paymentMethod: null,
         comment: document.getElementById("field-comment").value.trim(),
         issueDate: isDebt ? issueDate : null,
@@ -3535,6 +3605,36 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     });
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && getSyncConfig().key) syncNow();
+    });
+
+    function refreshOverlayLock() {
+      const open = [...document.querySelectorAll(".overlay")].some((el) => el.classList.contains("open"));
+      const body = document.body;
+      const html = document.documentElement;
+      if (open) {
+        if (!body.classList.contains("overlay-open")) {
+          refreshOverlayLock.scrollY = window.scrollY || window.pageYOffset || 0;
+          html.classList.add("overlay-open");
+          body.classList.add("overlay-open");
+          body.style.top = "-" + refreshOverlayLock.scrollY + "px";
+        }
+      } else if (body.classList.contains("overlay-open")) {
+        const y = refreshOverlayLock.scrollY || 0;
+        html.classList.remove("overlay-open");
+        body.classList.remove("overlay-open");
+        body.style.top = "";
+        window.scrollTo(0, y);
+      }
+    }
+
+    document.querySelectorAll(".overlay").forEach((overlay) => {
+      new MutationObserver(refreshOverlayLock).observe(overlay, { attributes: true, attributeFilter: ["class"] });
+      overlay.addEventListener("touchmove", (e) => {
+        if (e.target === overlay) e.preventDefault();
+      }, { passive: false });
+      overlay.addEventListener("wheel", (e) => {
+        if (e.target === overlay) e.preventDefault();
+      }, { passive: false });
     });
 
     render();
