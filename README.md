@@ -4,7 +4,9 @@
 
 ## Открыть приложение
 
-[https://karykeys-cmyk.github.io/financial-debt-tracker/](https://karykeys-cmyk.github.io/financial-debt-tracker/)
+[https://karykeys-cmyk.github.io/financial-debt-tracker/?v=37](https://karykeys-cmyk.github.io/financial-debt-tracker/?v=37)
+
+Если с телефона видите старые данные, откройте именно эту ссылку в Safari или Chrome, не с иконки на экране. Новый адрес обходит кэш.
 
 Один раз в репозитории на GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` → Folder: `/ (root)` → Save**. После этого ссылка выше открывает приложение.
 
