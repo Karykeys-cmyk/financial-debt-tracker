@@ -3,7 +3,7 @@
   "name": "Финансовый учёт",
   "short_name": "База",
   "description": "Учёт долгов, выплат и контрагентов",
-      "start_url": "./?v=60",
+      "start_url": "./?v=61",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
