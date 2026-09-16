@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="59" />
+  <meta name="app-build" content="60" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=59" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=59" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=59" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=59" />
+  <link rel="manifest" href="manifest.webmanifest?v=60" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=60" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=60" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=60" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1272,7 +1272,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=59" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=60" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1536,12 +1536,11 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "59";
+    const APP_BUILD = "60";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -2054,7 +2053,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      if (!options || !options.skipRemote) schedulePush();
+      if (!options || !options.skipRemote) queueSync();
     }
 
     let db = loadData();
@@ -2080,23 +2079,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function setSyncConfig(cfg) {
       localStorage.setItem(SYNC_KEY, JSON.stringify(cfg));
-      supabaseClient = null;
-    }
-
-    let supabaseClient = null;
-
-    function getSupabase() {
-      const { url, key } = getSyncConfig();
-      if (!url || !key) return null;
-      if (!window.supabase || !window.supabase.createClient) {
-        throw new Error("Клиент Supabase не загрузился. Проверьте интернет.");
-      }
-      if (!supabaseClient) supabaseClient = window.supabase.createClient(url, key);
-      return supabaseClient;
     }
 
     function formatSupabaseError(error) {
-      const text = [error?.message, error?.hint, error?.code].filter(Boolean).join(" ");
+      const text = [error?.message, error?.hint, error?.code, error?.details].filter(Boolean).join(" ");
       if (/finance_state/i.test(text) && /schema cache|does not exist|PGRST205/i.test(text)) {
         return "Таблица finance_state не найдена. Выполните SQL из настроек.";
       }
@@ -2155,7 +2141,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const map = new Map();
         const remoteList = remoteDict?.[name]?.records || [];
         const localList = localDict?.[name]?.records || [];
-        remoteList.concat(localList).forEach((rec) => {
+        const olderList = olderDict?.[name]?.records || [];
+        const newerList = newerDict?.[name]?.records || [];
+        olderList.concat(newerList).forEach((rec) => {
           if (!rec || !rec.id || deleted.has(rec.id)) return;
           const incoming = migrateRecord(rec);
           incoming.payments = (incoming.payments || []).filter((p) => p && p.id && !deletedPays.has(p.id));
@@ -2169,6 +2157,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             if (p && p.id && !deletedPays.has(p.id)) pmap.set(p.id, p);
           });
           map.set(incoming.id, { ...incoming, payments: [...pmap.values()] });
+        });
+        remoteList.concat(localList).forEach((rec) => {
+          if (!rec || !rec.id || deleted.has(rec.id) || map.has(rec.id)) return;
+          const incoming = migrateRecord(rec);
+          incoming.payments = (incoming.payments || []).filter((p) => p && p.id && !deletedPays.has(p.id));
+          map.set(incoming.id, incoming);
         });
         const newerC = newerDict?.[name] || {};
         const olderC = olderDict?.[name] || {};
@@ -2273,46 +2267,123 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return migrateDb(out);
     }
 
-    async function fetchRemote() {
-      const client = getSupabase();
-      if (!client) return null;
-      const { data, error } = await client
-        .from("finance_state")
-        .select("payload,updated_at")
-        .eq("id", "main")
-        .maybeSingle();
-      if (error) throw new Error(formatSupabaseError(error));
-      return data;
+    async function cloudRequest(method, query, body) {
+      const { url, key } = getSyncConfig();
+      if (!url || !key) throw new Error("Синхронизация не настроена");
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 25000);
+      try {
+        const res = await fetch(url.replace(/\/$/, "") + "/rest/v1/finance_state" + query, {
+          method,
+          headers: {
+            apikey: key,
+            Authorization: "Bearer " + key,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Prefer: method === "POST"
+              ? "resolution=merge-duplicates,return=minimal"
+              : "return=representation"
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+          cache: "no-store",
+          signal: ctrl.signal
+        });
+        const text = await res.text();
+        if (!res.ok) {
+          let parsed = null;
+          try { parsed = JSON.parse(text); } catch (err) { parsed = { message: text || ("HTTP " + res.status) }; }
+          throw new Error(formatSupabaseError(parsed));
+        }
+        if (!text) return null;
+        try { return JSON.parse(text); } catch (err) { return null; }
+      } catch (err) {
+        if (err && err.name === "AbortError") throw new Error("Облако не ответило. Проверьте интернет.");
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
     }
 
-    async function pushRemote() {
-      const client = getSupabase();
-      if (!client) return;
-      setSyncStatus("busy", "Сохранение в облако…");
-      const { error } = await client.from("finance_state").upsert({
+    function applyServerTimestamp(row) {
+      if (!row || !row.payload) return null;
+      const payload = row.payload;
+      const serverTs = Date.parse(row.updated_at);
+      if (Number.isFinite(serverTs) && serverTs > (Number(payload.updatedAt) || 0)) {
+        payload.updatedAt = serverTs;
+      }
+      return payload;
+    }
+
+    function dataFingerprint(data) {
+      const parts = [];
+      const walk = (cons) => {
+        Object.keys(cons || {}).sort().forEach((name) => {
+          parts.push(name);
+          (cons[name]?.records || []).slice().sort((a, b) => String(a.id || "").localeCompare(String(b.id || ""))).forEach((r) => {
+            parts.push(r.id, r.amount, (r.payments || []).map((p) => p.id + ":" + p.amount).join(","));
+          });
+          (cons[name]?.unsortedPayments || []).slice().sort((a, b) => String(a.id || "").localeCompare(String(b.id || ""))).forEach((p) => parts.push("u" + p.id + p.amount));
+        });
+      };
+      walk(data?.contractors);
+      Object.keys(data?.userBooks || {}).sort().forEach((login) => {
+        parts.push("book:" + login);
+        walk(data.userBooks[login]?.contractors);
+      });
+      parts.push((data?.cabinets || []).map((c) => c.login).join(","));
+      parts.push((data?.deletedRecordIds || []).join(","));
+      return parts.join("|");
+    }
+
+    async function fetchRemote() {
+      const rows = await cloudRequest("GET", "?id=eq.main&select=payload,updated_at");
+      if (Array.isArray(rows)) return rows[0] || null;
+      return rows;
+    }
+
+    async function upsertRemote() {
+      await cloudRequest("POST", "?on_conflict=id", [{
         id: "main",
         payload: db,
         updated_at: new Date().toISOString()
-      });
-      if (error) throw new Error(formatSupabaseError(error));
-      setSyncStatus("ok", "Синхронизировано с облаком");
+      }]);
     }
 
     function isLocalPreview() {
+      try {
+        if (new URLSearchParams(location.search).get("sync") === "1") return false;
+      } catch (err) { /* ignore */ }
       const host = location.hostname;
       return host === "127.0.0.1" || host === "localhost";
     }
 
-    let pushTimer = null;
-    function schedulePush() {
-      if (isLocalPreview() || !getSyncConfig().key) return;
-      clearTimeout(pushTimer);
-      pushTimer = setTimeout(() => {
-        pushRemote().catch((err) => setSyncStatus("error", err.message || "Ошибка синхронизации"));
-      }, 400);
+    function syncEnabled() {
+      return !isLocalPreview() && Boolean(getSyncConfig().key);
     }
 
-    async function syncNow() {
+    let syncLock = null;
+    let syncAgain = false;
+    let retryTimer = null;
+    let retryAttempt = 0;
+
+    function queueSync(reason) {
+      if (!syncEnabled()) {
+        if (isLocalPreview()) setSyncStatus("off", "Локальный просмотр без облака");
+        return;
+      }
+      setSyncStatus("busy", "Синхронизация…");
+      return syncNow(reason);
+    }
+
+    function scheduleRetry() {
+      clearTimeout(retryTimer);
+      if (retryAttempt >= 4) return;
+      const delay = [2000, 5000, 12000, 25000][retryAttempt] || 25000;
+      retryAttempt += 1;
+      retryTimer = setTimeout(() => queueSync(), delay);
+    }
+
+    async function syncNow(reason) {
       if (isLocalPreview()) {
         setSyncStatus("off", "Локальный просмотр без облака");
         return;
@@ -2320,27 +2391,43 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const { key } = getSyncConfig();
       if (!key) {
         setSyncStatus("off", "Синхронизация не настроена");
-        openSyncModal();
+        if (reason === "manual") openSyncModal();
         return;
       }
+      if (syncLock) {
+        syncAgain = true;
+        return syncLock;
+      }
+      syncLock = runSync(reason).finally(() => {
+        syncLock = null;
+      });
+      return syncLock;
+    }
+
+    async function runSync(reason) {
       setSyncStatus("busy", "Синхронизация…");
       try {
-        const remote = await fetchRemote();
-        if (remote && remote.payload) {
-          const payload = remote.payload;
-          const serverTs = Date.parse(remote.updated_at);
-          if (Number.isFinite(serverTs) && serverTs > (Number(payload.updatedAt) || 0)) {
-            payload.updatedAt = serverTs;
+        do {
+          syncAgain = false;
+          const before = dataFingerprint(db);
+          const remote = await fetchRemote();
+          if (remote && remote.payload) {
+            db = mergeFinanceData(db, applyServerTimestamp(remote));
+            saveData(db, { skipRemote: true });
+            const overlayOpen = document.body.classList.contains("overlay-open");
+            if (!overlayOpen && dataFingerprint(db) !== before) render();
           }
-          db = mergeFinanceData(db, payload);
-          saveData(db, { skipRemote: true });
-          render();
-        }
-        await pushRemote();
-        showToast("Данные синхронизированы");
+          await upsertRemote();
+        } while (syncAgain);
+        retryAttempt = 0;
+        clearTimeout(retryTimer);
+        setSyncStatus("ok", "Синхронизировано с облаком");
+        if (reason === "manual") showToast("Данные синхронизированы");
       } catch (err) {
-        setSyncStatus("error", err.message || "Ошибка синхронизации");
-        showToast("Не удалось синхронизировать");
+        const msg = err.message || "Ошибка синхронизации";
+        setSyncStatus("error", msg);
+        if (reason === "manual") showToast("Не удалось синхронизировать");
+        scheduleRetry();
       }
     }
 
@@ -4322,7 +4409,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       setSyncConfig({ url, key });
       closeSyncModal();
-      await syncNow();
+      await syncNow("manual");
     }
 
     function submitContractor(event) {
@@ -4618,8 +4705,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (e.key === "Escape") closeOverlays();
     });
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && getSyncConfig().key) syncNow();
+      if (!syncEnabled()) return;
+      queueSync(document.visibilityState === "visible" ? "resume" : "flush");
     });
+    window.addEventListener("pagehide", () => {
+      if (syncEnabled()) queueSync("flush");
+    });
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted && syncEnabled()) queueSync("resume");
+    });
+    window.addEventListener("online", () => {
+      if (syncEnabled()) queueSync("resume");
+    });
+    setInterval(() => {
+      if (document.visibilityState === "visible" && syncEnabled()) queueSync();
+    }, 45000);
 
     function refreshOverlayLock() {
       const open = [...document.querySelectorAll(".overlay")].some((el) => el.classList.contains("open"));
@@ -4660,7 +4760,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         syncHoldOpened = false;
         return;
       }
-      syncNow();
+      syncNow("manual");
     });
     syncNowBtn.addEventListener("pointerdown", () => {
       syncHoldOpened = false;
@@ -4682,7 +4782,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     setSyncStatus(syncState.status, syncState.message);
     if (getSyncConfig().key) {
       setSyncStatus("busy", "Синхронизация…");
-      syncNow();
+      queueSync();
     }
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations().then((regs) => {

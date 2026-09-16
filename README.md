@@ -4,7 +4,7 @@
 
 ## Открыть приложение
 
-[https://karykeys-cmyk.github.io/financial-debt-tracker/?v=59](https://karykeys-cmyk.github.io/financial-debt-tracker/?v=59)
+[https://karykeys-cmyk.github.io/financial-debt-tracker/?v=60](https://karykeys-cmyk.github.io/financial-debt-tracker/?v=60)
 
 Если с телефона видите старые данные, откройте именно эту ссылку в Safari или Chrome, не с иконки на экране. Новый адрес обходит кэш.
 
@@ -68,7 +68,7 @@
 
 Проект: [https://sqsnhapkgtdjjkiexfrn.supabase.co](https://sqsnhapkgtdjjkiexfrn.supabase.co)
 
-Клиент Supabase подключается с адресом проекта и publishable-ключом. Приложение остаётся одним HTML-файлом, без `npm` и без React: библиотека подключается из браузера.
+Клиент ходит в Supabase напрямую (без отдельной библиотеки). После каждой записи приложение сначала забирает облако, сливает с тем, что на устройстве, и сразу отправляет обратно — так телефон не затирает компьютер и наоборот. Если вкладку свернули, синхронизация всё равно дожимается.
 
 Один раз создайте таблицу — в SQL Editor вставьте скрипт из «Настройки синхронизации» или выполните:
 
