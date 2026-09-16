@@ -2635,15 +2635,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return "Долг";
     }
 
-    function monthRange(year, month) {
-      const y = Number(year);
-      const m = Number(month);
-      const start = y + "-" + String(m).padStart(2, "0") + "-01";
-      const last = new Date(y, m, 0).getDate();
-      const end = y + "-" + String(m).padStart(2, "0") + "-" + String(last).padStart(2, "0");
-      return { start, end };
-    }
-
     function monthExclusiveEnd(year, month) {
       const y = Number(year);
       const m = Number(month);
