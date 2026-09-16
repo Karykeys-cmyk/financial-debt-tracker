@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="61" />
+  <meta name="app-build" content="62" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=61" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=61" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=61" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=61" />
+  <link rel="manifest" href="manifest.webmanifest?v=62" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=62" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=62" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=62" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1098,6 +1098,54 @@
       background: rgba(74, 158, 255, 0.08);
     }
 
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap input {
+      padding-right: 46px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .password-toggle:hover,
+    .password-toggle[aria-pressed="true"] {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .password-toggle svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    .password-toggle .eye-hide {
+      display: none;
+    }
+
+    .password-toggle[aria-pressed="true"] .eye-show {
+      display: none;
+    }
+
+    .password-toggle[aria-pressed="true"] .eye-hide {
+      display: block;
+    }
+
     .field select option {
       background: #121f3a;
       color: #fff;
@@ -1272,7 +1320,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=61" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=62" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1437,7 +1485,21 @@
         </div>
         <div class="field">
           <label for="field-cab-password">Пароль</label>
-          <input id="field-cab-password" type="text" autocomplete="off" maxlength="60" />
+          <div class="password-wrap">
+            <input id="field-cab-password" type="password" autocomplete="new-password" maxlength="60" />
+            <button type="button" class="password-toggle" data-password-toggle="field-cab-password" aria-label="Показать пароль" title="Показать пароль" aria-pressed="false">
+              <svg class="eye-show" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-hide" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3l18 18"/>
+                <path d="M10.6 10.6a2 2 0 1 0 2.8 2.8"/>
+                <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c6 0 10 7 10 7a17.4 17.4 0 0 1-3.2 3.8"/>
+                <path d="M6.7 6.7C3.8 8.6 2 12 2 12s4 7 10 7a10.5 10.5 0 0 0 4.3-.9"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="field" id="cab-name-field">
           <label for="field-cab-name">Имя в кабинете</label>
@@ -1540,7 +1602,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "61";
+    const APP_BUILD = "62";
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -2936,8 +2998,37 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       bindView();
     }
 
+    function bindPasswordToggles(root) {
+      (root || document).querySelectorAll("[data-password-toggle]").forEach((btn) => {
+        if (btn.dataset.bound === "1") return;
+        btn.dataset.bound = "1";
+        btn.addEventListener("click", () => {
+          const input = document.getElementById(btn.getAttribute("data-password-toggle"));
+          if (!input) return;
+          const show = input.type === "password";
+          input.type = show ? "text" : "password";
+          btn.setAttribute("aria-pressed", show ? "true" : "false");
+          const label = show ? "Скрыть пароль" : "Показать пароль";
+          btn.setAttribute("aria-label", label);
+          btn.title = label;
+        });
+      });
+    }
+
+    function resetPasswordToggle(inputId) {
+      const input = document.getElementById(inputId);
+      const btn = document.querySelector('[data-password-toggle="' + inputId + '"]');
+      if (input) input.type = "password";
+      if (btn) {
+        btn.setAttribute("aria-pressed", "false");
+        btn.setAttribute("aria-label", "Показать пароль");
+        btn.title = "Показать пароль";
+      }
+    }
+
     function bindLogin() {
       document.getElementById("login-form")?.addEventListener("submit", submitLogin);
+      bindPasswordToggles(document.getElementById("login-form"));
     }
 
     function renderLogin() {
@@ -2952,7 +3043,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             </div>
             <div class="field">
               <label for="login-pass">Пароль</label>
-              <input id="login-pass" type="password" autocomplete="current-password" required />
+              <div class="password-wrap">
+                <input id="login-pass" type="password" autocomplete="current-password" required />
+                <button type="button" class="password-toggle" data-password-toggle="login-pass" aria-label="Показать пароль" title="Показать пароль" aria-pressed="false">
+                  <svg class="eye-show" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg class="eye-hide" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3l18 18"/>
+                    <path d="M10.6 10.6a2 2 0 1 0 2.8 2.8"/>
+                    <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c6 0 10 7 10 7a17.4 17.4 0 0 1-3.2 3.8"/>
+                    <path d="M6.7 6.7C3.8 8.6 2 12 2 12s4 7 10 7a10.5 10.5 0 0 0 4.3-.9"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="error" id="login-error"></div>
             <button type="submit" class="btn-primary">Войти</button>
@@ -4531,6 +4636,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       fillCabinetModal();
       setCabinetCreateMode(true);
       syncCabinetFields();
+      resetPasswordToggle("field-cab-password");
       document.getElementById("field-cab-login").focus();
     }
 
@@ -4538,6 +4644,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("cabinet-form").reset();
       document.getElementById("cabinet-error").classList.remove("show");
       state.cabinetRole = "user";
+      resetPasswordToggle("field-cab-password");
       setCabinetCreateMode(false);
       fillCabinetModal();
     }
@@ -4651,6 +4758,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("contractor-form").addEventListener("submit", submitContractor);
     document.getElementById("contractor-cancel").addEventListener("click", closeContractorModal);
     document.getElementById("cabinet-form").addEventListener("submit", submitCabinet);
+    bindPasswordToggles(document.getElementById("cabinet-form"));
     document.getElementById("cabinet-cancel").addEventListener("click", closeCabinetCreate);
     document.getElementById("cabinet-close").addEventListener("click", closeCabinetModal);
     document.getElementById("cabinet-start-create").addEventListener("click", openCabinetCreate);
