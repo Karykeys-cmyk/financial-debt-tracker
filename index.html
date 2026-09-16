@@ -3011,6 +3011,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           const label = show ? "Скрыть пароль" : "Показать пароль";
           btn.setAttribute("aria-label", label);
           btn.title = label;
+          input.focus();
+          try { input.setSelectionRange(input.value.length, input.value.length); } catch (err) { /* ignore */ }
         });
       });
     }
