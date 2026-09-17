@@ -4,17 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="63" />
+  <meta name="app-build" content="64" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
+  <meta http-equiv="Expires" content="0" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
-  <link rel="manifest" href="manifest.webmanifest?v=63" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=63" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=63" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=63" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=64" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=64" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=64" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1302,7 +1304,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=63" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=64" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1583,7 +1585,50 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "63";
+    const APP_BUILD = "64";
+    const APP_RELOAD_KEY = "finansovyy-uchet-reload";
+
+    async function ensureLatestApp() {
+      try {
+        const res = await fetch("./version.json?t=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) return false;
+        const data = await res.json();
+        const remote = String((data && data.build) || "");
+        if (!remote || remote === APP_BUILD) return false;
+        if (sessionStorage.getItem(APP_RELOAD_KEY) === remote) return false;
+        sessionStorage.setItem(APP_RELOAD_KEY, remote);
+        const next = new URL(location.href);
+        next.searchParams.set("v", remote);
+        location.replace(next.pathname + next.search + next.hash);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function registerAppWorker() {
+      if (!("serviceWorker" in navigator)) return;
+      let reloading = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloading) return;
+        reloading = true;
+        location.reload();
+      });
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (!event.data || event.data.type !== "APP_UPDATED") return;
+        if (String(event.data.build) === APP_BUILD) return;
+        location.reload();
+      });
+      navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then((reg) => {
+        reg.update();
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState !== "visible") return;
+          reg.update();
+          ensureLatestApp();
+        });
+      }).catch(() => {});
+    }
+
     const ADMIN_LOGIN = "admin";
     const ADMIN_PASSWORD = "baseadmin";
     const OWNER_NAME = "Кариша";
@@ -4858,11 +4903,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       setSyncStatus("busy", "Синхронизация…");
       queueSync();
     }
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        return Promise.all(regs.map((reg) => reg.unregister()));
-      }).then(() => navigator.serviceWorker.register("./sw.js?v=" + APP_BUILD)).catch(() => {});
-    }
+    ensureLatestApp();
+    registerAppWorker();
   </script>
 </body>
 </html>
