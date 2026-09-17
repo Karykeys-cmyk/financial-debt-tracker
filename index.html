@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="64" />
+  <meta name="app-build" content="65" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta http-equiv="Expires" content="0" />
@@ -14,9 +14,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=64" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=64" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=64" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=65" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=65" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=65" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -561,9 +561,17 @@
       background: rgba(94, 233, 163, 0.08);
     }
 
+    tr[data-open-record] {
+      cursor: pointer;
+    }
+
     .remain-open { color: var(--debit); font-weight: 650; }
     .remain-paid { color: var(--saldo-plus); font-weight: 650; }
     .remain-overdue { color: var(--saldo-minus); font-weight: 650; }
+
+    .payments-panel.closed-debt .pay-inline {
+      display: none;
+    }
 
     .payments-panel {
       margin: 4px 0 16px;
@@ -983,6 +991,7 @@
       background: rgba(255, 255, 255, 0.04);
       border-radius: 12px;
       padding: 14px;
+      cursor: pointer;
     }
 
     .record-card .row {
@@ -1304,7 +1313,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=64" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=65" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1322,6 +1331,33 @@
     <form class="modal" id="record-form" novalidate>
       <h2 id="record-title">Добавить запись</h2>
       <div class="modal-scroll">
+      <div class="payments-panel hidden" id="payments-panel">
+        <div class="payments-head">
+          <strong id="payments-title">Выплаты по этому долгу</strong>
+          <span id="payments-remaining"></span>
+        </div>
+        <div id="payments-list"></div>
+        <div class="pay-inline">
+          <div class="field">
+            <label for="pay-date">Дата выплаты</label>
+            <input id="pay-date" type="date" />
+          </div>
+          <div class="field">
+            <label for="pay-amount">Сумма выплаты</label>
+            <input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="0" />
+          </div>
+          <div class="field">
+            <label for="pay-method">Способ оплаты</label>
+            <select id="pay-method"></select>
+          </div>
+          <div class="field">
+            <label for="pay-comment">Комментарий к выплате</label>
+            <input id="pay-comment" type="text" placeholder="Необязательно" />
+          </div>
+          <button type="button" class="btn-primary" id="pay-add">Добавить выплату</button>
+          <div class="error" id="pay-error"></div>
+        </div>
+      </div>
       <div class="field" id="type-field">
         <label>Тип</label>
         <div class="type-toggle">
@@ -1393,33 +1429,6 @@
         <textarea id="field-comment" placeholder="Необязательно"></textarea>
       </div>
       <div class="profit-preview hidden" id="profit-preview">Прибыль: 0 ₽</div>
-      <div class="payments-panel hidden" id="payments-panel">
-        <div class="payments-head">
-          <strong>Выплаты по этому долгу</strong>
-          <span id="payments-remaining"></span>
-        </div>
-        <div id="payments-list"></div>
-        <div class="pay-inline">
-          <div class="field">
-            <label for="pay-date">Дата выплаты</label>
-            <input id="pay-date" type="date" />
-          </div>
-          <div class="field">
-            <label for="pay-amount">Сумма выплаты</label>
-            <input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="0" />
-          </div>
-          <div class="field">
-            <label for="pay-method">Способ оплаты</label>
-            <select id="pay-method"></select>
-          </div>
-          <div class="field">
-            <label for="pay-comment">Комментарий к выплате</label>
-            <input id="pay-comment" type="text" placeholder="Необязательно" />
-          </div>
-          <button type="button" class="btn-primary" id="pay-add">Добавить выплату</button>
-          <div class="error" id="pay-error"></div>
-        </div>
-      </div>
       </div>
       <div class="error" id="record-error"></div>
       <div class="modal-actions">
@@ -1585,7 +1594,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "64";
+    const APP_BUILD = "65";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -1879,6 +1888,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function paymentSum(record) {
       return (record.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    }
+
+    function paymentLines(record) {
+      return (record.payments || []).slice().sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+    }
+
+    function paymentsSummary(record) {
+      const pays = paymentLines(record);
+      if (!pays.length) return "";
+      if (pays.length === 1) {
+        const p = pays[0];
+        return "Выплата " + formatDate(p.date) + " · " + formatMoney(p.amount) + (p.paymentMethod ? " · " + p.paymentMethod : "");
+      }
+      const last = pays[pays.length - 1];
+      return pays.length + " выплаты · " + formatMoney(paymentSum(record)) + " · последняя " + formatDate(last.date);
     }
 
     function normalizeInvoiceNumber(value) {
@@ -3324,9 +3348,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         if (overdueIds.has(r.id)) return "remain-overdue";
         return "remain-open";
       };
-      const payCount = (r) => (r.payments || []).length;
       const tableRows = rows.map((r) => `
-        <tr class="${rowClass(r)}">
+        <tr class="${rowClass(r)}" data-open-record="${escapeHtml(r.id)}">
           <td>${escapeHtml(recordDateLabel(r))}</td>
           <td>${escapeHtml(r.category)}</td>
           <td>
@@ -3336,7 +3359,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${r.legalEntity ? `<span class="cell-extra">${escapeHtml(r.legalEntity)}</span>` : ""}
             ${r.issueDate ? `<span class="cell-extra">${isBorrowed(r) ? "получили" : "выдача"} ${formatDate(r.issueDate)}</span>` : ""}
             ${r.returnDate ? `<span class="cell-extra ${overdueIds.has(r.id) ? "overdue-mark" : ""}">вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span>` : (isBorrowed(r) ? `<span class="cell-extra">без срока</span>` : "")}
-            ${payCount(r) ? `<span class="cell-extra">${payCount(r)} ${payCount(r) === 1 ? "выплата" : "выплаты"}</span>` : ""}
+            ${paymentsSummary(r) ? `<span class="cell-extra">${escapeHtml(paymentsSummary(r))}</span>` : ""}
           </td>
           <td>${formatMoney(r.amount)}</td>
           <td class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</td>
@@ -3354,10 +3377,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           ? (isBorrowed(r) ? "Потери: " : "Прибыль: ") + formatMoney(r.profit)
           : [r.category === "Аренда помещения" ? "" : r.month, r.invoiceNumber ? "№ " + r.invoiceNumber : "", r.legalEntity].filter(Boolean).join(" · ");
         return `
-        <div class="record-card ${rowClass(r)}">
+        <div class="record-card ${rowClass(r)}" data-open-record="${escapeHtml(r.id)}">
           <div class="row"><strong>${escapeHtml(recordDateLabel(r))}</strong><span class="${isFullyPaid(r) ? "remain-paid" : "type-debit"}">${escapeHtml(recordTypeLabel(r))}</span></div>
           <div class="row"><span>${escapeHtml(r.category)}${r.subCategory ? " · " + escapeHtml(r.subCategory) : ""}</span><strong>${formatMoney(r.amount)}</strong></div>
-          <div class="row"><span>Остаток</span><strong class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</strong></div>
+          ${isFullyPaid(r)
+            ? `<div class="row"><span>Закрыт</span><strong class="remain-paid">${formatMoney(paymentSum(r))}</strong></div>
+          ${paymentsSummary(r) ? `<div class="row muted"><span>${escapeHtml(paymentsSummary(r))}</span></div>` : ""}`
+            : `<div class="row"><span>Остаток</span><strong class="${remainClass(r)}">${formatMoney(Math.max(0, remainingOf(r)))}</strong></div>`}
           ${extra ? `<div class="row muted"><span>${escapeHtml(extra)}</span></div>` : ""}
           ${r.returnDate ? `<div class="row ${overdueIds.has(r.id) ? "overdue-mark" : "muted"}"><span>вернуть до ${formatDate(r.returnDate)}${overdueIds.has(r.id) ? " · просрочен" : ""}</span></div>` : (isBorrowed(r) ? `<div class="row muted"><span>без срока возврата</span></div>` : "")}
           ${r.comment ? `<div class="row muted"><span>${escapeHtml(r.comment)}</span></div>` : ""}
@@ -3647,15 +3673,31 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
 
       document.querySelectorAll("[data-edit]").forEach((btn) => {
-        btn.addEventListener("click", () => openRecordModal(btn.getAttribute("data-edit")));
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openRecordModal(btn.getAttribute("data-edit"));
+        });
+      });
+
+      document.querySelectorAll("[data-open-record]").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          if (e.target.closest("button, a, input, select, textarea")) return;
+          openRecordModal(el.getAttribute("data-open-record"));
+        });
       });
 
       document.querySelectorAll("[data-delete]").forEach((btn) => {
-        btn.addEventListener("click", () => askDelete(btn.getAttribute("data-delete")));
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          askDelete(btn.getAttribute("data-delete"));
+        });
       });
 
       document.querySelectorAll("[data-pay]").forEach((btn) => {
-        btn.addEventListener("click", () => openRecordModal(null, { repay: true, debtId: btn.getAttribute("data-pay") }));
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openRecordModal(null, { repay: true, debtId: btn.getAttribute("data-pay") });
+        });
       });
 
       document.querySelectorAll("[data-sort-assign]").forEach((btn) => {
@@ -3742,14 +3784,20 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function renderPaymentsPanel() {
       const rec = currentRecords().find((r) => r.id === state.editingId);
+      const panel = document.getElementById("payments-panel");
       const list = document.getElementById("payments-list");
       const remainEl = document.getElementById("payments-remaining");
+      const titleEl = document.getElementById("payments-title");
       if (!rec) {
         list.innerHTML = "";
         remainEl.textContent = "";
+        panel.classList.remove("closed-debt");
+        if (titleEl) titleEl.textContent = "Выплаты по этому долгу";
         return;
       }
       const paid = isFullyPaid(rec);
+      panel.classList.toggle("closed-debt", paid);
+      if (titleEl) titleEl.textContent = paid ? "Чем закрыт долг" : "Выплаты по этому долгу";
       remainEl.textContent = paid
         ? "Погашен · выплачено " + formatMoney(paymentSum(rec))
         : "Остаток " + formatMoney(Math.max(0, remainingOf(rec)));
@@ -3976,6 +4024,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (id) {
         const rec = currentRecords().find((r) => r.id === id);
         if (rec) {
+          if (isFullyPaid(rec)) document.getElementById("record-title").textContent = "Погашенный долг";
           document.getElementById("field-category").value = rec.category;
           if (rec.subCategory && RENTAL_SUBS.includes(rec.subCategory)) {
             document.getElementById("field-subcategory").value = rec.subCategory;
@@ -4005,7 +4054,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("record-overlay").classList.add("open");
       const scroller = document.querySelector("#record-form .modal-scroll");
       if (scroller) scroller.scrollTop = 0;
-      document.getElementById("field-amount").focus();
+      const opened = id ? currentRecords().find((r) => r.id === id) : null;
+      if (!(opened && isFullyPaid(opened))) document.getElementById("field-amount").focus();
     }
 
     function closeRecordModal() {
