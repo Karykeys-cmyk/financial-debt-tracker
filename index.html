@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="68" />
+  <meta name="app-build" content="69" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta http-equiv="Expires" content="0" />
@@ -14,9 +14,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=68" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=68" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=68" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=69" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=69" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=69" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1313,15 +1313,20 @@
 
     .toast {
       position: fixed;
-      left: 50%;
-      bottom: 24px;
-      transform: translateX(-50%) translateY(20px);
+      left: 1.5cm;
+      right: 1.5cm;
+      bottom: 1.5cm;
+      width: auto;
+      max-width: none;
+      box-sizing: border-box;
+      transform: translateY(20px);
       background: rgba(18, 31, 58, 0.95);
       border: 1px solid rgba(74, 158, 255, 0.35);
       color: var(--text);
-      padding: 12px 18px;
+      padding: 14px 20px;
       border-radius: 12px;
       box-shadow: var(--shadow);
+      text-align: center;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s, transform 0.3s;
@@ -1330,7 +1335,16 @@
 
     .toast.show {
       opacity: 1;
-      transform: translateX(-50%) translateY(0);
+      transform: translateY(0);
+    }
+
+    @media (max-width: 760px) {
+      .toast {
+        left: 0.5cm;
+        right: 0.5cm;
+        bottom: 0.5cm;
+        padding: 12px 14px;
+      }
     }
 
     .confirm-text {
@@ -1373,7 +1387,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=68" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=69" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1667,7 +1681,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "68";
+    const APP_BUILD = "69";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
