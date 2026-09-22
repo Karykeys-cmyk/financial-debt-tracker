@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="66" />
+  <meta name="app-build" content="67" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta http-equiv="Expires" content="0" />
@@ -14,9 +14,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=66" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=66" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=66" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=67" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=67" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=67" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1325,7 +1325,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=66" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=67" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1606,7 +1606,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "66";
+    const APP_BUILD = "67";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -2078,19 +2078,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         contractor.autoPaymentsShelved = true;
       } else {
         const assignedIds = new Set();
-        const assignedPrints = new Set();
         debts.forEach((d) => {
           (d.payments || []).forEach((p) => {
             if (p && p.id) assignedIds.add(p.id);
-            const fp = paymentFingerprint(p);
-            if (fp) assignedPrints.add(fp);
           });
         });
         assignedIds.forEach((id) => unsortedMap.delete(id));
-        [...unsortedMap.keys()].forEach((id) => {
-          const fp = paymentFingerprint(unsortedMap.get(id));
-          if (fp && assignedPrints.has(fp)) unsortedMap.delete(id);
-        });
       }
       const seenPay = new Set();
       debts.forEach((d) => {
@@ -2290,11 +2283,20 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         });
         const newerC = newerDict?.[name] || {};
         const olderC = olderDict?.[name] || {};
+        const newerAssign = paymentOwnerMap(newerC);
         const assign = paymentOwnerMap(olderC);
-        paymentOwnerMap(newerC).forEach((debtId, payId) => assign.set(payId, debtId));
+        newerAssign.forEach((debtId, payId) => assign.set(payId, debtId));
+        const unassigned = new Set();
+        (newerC.unsortedPayments || []).forEach((p) => {
+          if (p && p.id && !newerAssign.has(p.id)) {
+            assign.delete(p.id);
+            unassigned.add(p.id);
+          }
+        });
         map.forEach((rec) => {
           rec.payments = (rec.payments || []).filter((p) => {
             if (!p || !p.id || deletedPays.has(p.id)) return false;
+            if (unassigned.has(p.id)) return false;
             const owner = assign.get(p.id);
             return !owner || owner === rec.id;
           });
@@ -3900,6 +3902,38 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return item;
     }
 
+    function showReopenedDebt(rec) {
+      if (!rec) return;
+      if (rec.category === "Аренда помещения") {
+        state.tab = "rental";
+        if (RENTAL_SUBS.includes(rec.subCategory)) state.subTab = rec.subCategory;
+      } else if (rec.category === "Аренда ДТФ") {
+        state.tab = "dtf";
+      } else if (rec.category === "Счета") {
+        state.tab = "invoices";
+      } else {
+        state.tab = "debt";
+      }
+      state.workTab = state.tab;
+      state.periodMode = "all";
+      state.recordSearch = "";
+    }
+
+    function shelveRecordPayments(contractor, rec) {
+      if (!contractor || !rec) return 0;
+      if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
+      let moved = 0;
+      (rec.payments || []).forEach((p) => {
+        const item = normalizePayment(p);
+        if (!item) return;
+        if (!contractor.unsortedPayments.some((x) => x.id === item.id)) {
+          contractor.unsortedPayments.push(item);
+          moved += 1;
+        }
+      });
+      return moved;
+    }
+
     function syncRecordFields() {
       const category = document.getElementById("field-category").value;
       const isDebt = category === "Деньги в долг";
@@ -4290,7 +4324,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function askDelete(id) {
       state.pendingDelete = { kind: "record", id };
-      openConfirm("Удалить долг?", "Будут удалены долг и все выплаты по нему.");
+      openConfirm(
+        "Удалить долг?",
+        "Сам долг пропадёт. Выплаты по нему вернутся во вкладку «Требует сортировки» — их можно привязать заново."
+      );
     }
 
     function askDeletePayment(debtId, paymentId) {
@@ -4535,12 +4572,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       if (pending.kind === "payment") {
         const item = returnPaymentToUnsorted(state.contractor, pending.debtId, pending.id);
+        const rec = item ? currentRecords().find((r) => r.id === pending.debtId) : null;
+        if (rec && !isFullyPaid(rec)) {
+          showReopenedDebt(rec);
+          closeRecordModal();
+        }
         state.pendingDelete = null;
         document.getElementById("confirm-overlay").classList.remove("open");
         render();
         if (state.editingId) renderPaymentsPanel();
         showToast(item
-          ? "Выплата вернулась во вкладку «Требует сортировки»"
+          ? (rec && !isFullyPaid(rec)
+            ? "Выплата в «Требует сортировки». Долг снова открыт"
+            : "Выплата вернулась во вкладку «Требует сортировки»")
           : "Выплату не удалось снять с долга");
         return;
       }
@@ -4560,14 +4604,26 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       const id = pending.id;
       if (!id) return;
+      const contractor = contractorsMap()[state.contractor];
+      const rec = (contractor?.records || []).find((r) => r.id === id);
+      const moved = shelveRecordPayments(contractor, rec);
       store.deletedRecordIds = store.deletedRecordIds || [];
       if (!store.deletedRecordIds.includes(id)) store.deletedRecordIds.push(id);
-      contractorsMap()[state.contractor].records = currentRecords().filter((r) => r.id !== id);
+      if (contractor) {
+        contractor.records = (contractor.records || []).filter((r) => r.id !== id);
+      }
       saveData(db);
       state.pendingDelete = null;
       document.getElementById("confirm-overlay").classList.remove("open");
+      if (moved) {
+        state.tab = "sort";
+        state.periodMode = "all";
+        state.recordSearch = "";
+      }
       render();
-      showToast("Долг удалён");
+      showToast(moved
+        ? "Долг удалён. " + moved + (moved === 1 ? " выплата ушла" : " выплаты ушли") + " в «Требует сортировки»"
+        : "Долг удалён");
     }
 
     function openContractorModal() {
@@ -4963,6 +5019,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       e.preventDefault();
       openSyncModal();
     });
+
+    window.__mergeFinanceData = mergeFinanceData;
 
     render();
     setSyncStatus(syncState.status, syncState.message);
