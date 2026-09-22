@@ -2,11 +2,13 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="70" />
+  <meta name="app-build" content="71" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
+  <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="dark" />
   <meta http-equiv="Expires" content="0" />
   <meta http-equiv="Pragma" content="no-cache" />
@@ -15,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=70" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=70" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=70" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=71" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=71" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=71" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -46,31 +48,37 @@
     html {
       background-color: #0a1628;
       color-scheme: dark;
+      min-height: 100%;
+      min-height: 100dvh;
+      min-height: -webkit-fill-available;
     }
 
     html, body {
       min-height: 100%;
       min-height: 100dvh;
+      min-height: -webkit-fill-available;
       background-color: #0a1628;
     }
 
     html.overlay-open,
     body.overlay-open {
       overflow: hidden;
+      background-color: #0a1628;
     }
 
     body.overlay-open {
       position: fixed;
+      inset: 0;
       width: 100%;
-      left: 0;
-      right: 0;
+      height: 100%;
+      height: 100dvh;
+      height: -webkit-fill-available;
     }
 
     body {
       font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: #0a1628;
       background-image: linear-gradient(135deg, var(--bg-start), var(--bg-end));
-      background-attachment: fixed;
       color: var(--text);
       line-height: 1.45;
     }
@@ -86,6 +94,18 @@
       z-index: 0;
     }
 
+    body::after {
+      content: "";
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 100%;
+      height: 120vh;
+      pointer-events: none;
+      background: #0a1628;
+      z-index: 2147483646;
+    }
+
     button, input, select, textarea {
       font: inherit;
       color-scheme: dark;
@@ -93,6 +113,16 @@
 
     input, select, textarea {
       background-color: #121f3a;
+      color: #ffffff;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="url"],
+    input[type="password"],
+    textarea {
+      -webkit-appearance: none;
+      appearance: none;
     }
 
     input:-webkit-autofill,
@@ -1102,8 +1132,9 @@
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(5, 10, 22, 0.72);
-      backdrop-filter: blur(6px);
+      background: #0a1628;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
       z-index: 20;
       display: none;
       align-items: center;
@@ -1118,6 +1149,38 @@
       display: flex;
     }
 
+    html.keyboard-open .overlay.open {
+      top: var(--vv-top, 0px);
+      left: var(--vv-left, 0px);
+      width: var(--vv-width, 100%);
+      height: var(--vv-height, 100%);
+      right: auto;
+      bottom: auto;
+      align-items: flex-start;
+      background: #0a1628;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+
+    #keyboard-fill {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: calc(var(--vv-top, 0px) + var(--vv-height, 100dvh));
+      height: max(var(--kb-gap, 0px), 50vh);
+      background: #0a1628;
+      pointer-events: none;
+      z-index: 21;
+    }
+
+    @media (hover: hover) and (min-width: 761px) {
+      .overlay {
+        background: rgba(5, 10, 22, 0.72);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+    }
+
     #confirm-overlay {
       z-index: 30;
     }
@@ -1130,7 +1193,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      background: linear-gradient(180deg, rgba(18, 31, 58, 0.96), rgba(10, 22, 40, 0.96));
+      background: linear-gradient(180deg, #121f3a, #0a1628);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 16px;
       box-shadow: var(--shadow);
@@ -1177,10 +1240,11 @@
       padding: 11px 12px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.05);
+      background-color: #121f3a;
+      background-image: none;
       color: var(--text);
       outline: none;
-      transition: border-color 0.3s, background 0.3s;
+      transition: border-color 0.3s, background-color 0.3s;
     }
 
     .field textarea {
@@ -1192,7 +1256,7 @@
     .field select:focus,
     .field textarea:focus {
       border-color: var(--accent);
-      background: rgba(74, 158, 255, 0.08);
+      background-color: #163056;
     }
 
     .password-wrap {
@@ -1296,13 +1360,17 @@
       color: var(--saldo-minus);
     }
 
+    html.keyboard-open .modal {
+      max-height: calc(var(--vv-height, 100dvh) - 16px);
+    }
+
     .modal-actions {
       display: flex;
       gap: 10px;
       flex-shrink: 0;
       margin-top: 12px;
       padding-top: 12px;
-      background: linear-gradient(180deg, rgba(10, 22, 40, 0.88), rgba(10, 22, 40, 0.98));
+      background: #0a1628;
     }
 
     .btn-primary, .btn-secondary {
@@ -1413,7 +1481,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=70" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=71" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1428,7 +1496,7 @@
   <div class="app" id="app"></div>
 
   <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
-    <form class="modal" id="record-form" novalidate>
+    <form class="modal" id="record-form" novalidate autocomplete="off">
       <h2 id="record-title">Добавить запись</h2>
       <div class="modal-scroll">
       <div class="payments-panel hidden" id="payments-panel">
@@ -1452,7 +1520,7 @@
           </div>
           <div class="field">
             <label for="pay-comment">Комментарий к выплате</label>
-            <input id="pay-comment" type="text" placeholder="Необязательно" />
+            <input id="pay-comment" type="text" name="pay-note" placeholder="Необязательно" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="true" inputmode="text" enterkeyhint="done" data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
           </div>
           <button type="button" class="btn-primary" id="pay-add">Добавить выплату</button>
           <div class="error" id="pay-error"></div>
@@ -1502,7 +1570,7 @@
       </div>
       <div class="field hidden" id="invoice-field">
         <label for="field-invoice">Номер счета</label>
-        <input id="field-invoice" type="text" placeholder="Например, СЧ-104" maxlength="40" />
+        <input id="field-invoice" type="text" name="invoice-no" placeholder="Например, СЧ-104" maxlength="40" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
       </div>
       <div class="field hidden" id="legal-entity-field">
         <label for="field-legal-entity">Юрлицо</label>
@@ -1526,7 +1594,7 @@
       </div>
       <div class="field" id="comment-field">
         <label for="field-comment">Комментарий</label>
-        <textarea id="field-comment" placeholder="Необязательно"></textarea>
+        <textarea id="field-comment" name="record-note" placeholder="Необязательно" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" inputmode="text" enterkeyhint="done" data-lpignore="true" data-1p-ignore="true" data-form-type="other"></textarea>
       </div>
       <div class="profit-preview hidden" id="profit-preview">Прибыль: 0 ₽</div>
       </div>
@@ -1539,11 +1607,11 @@
   </div>
 
   <div class="overlay" id="contractor-overlay" role="dialog" aria-modal="true">
-    <form class="modal" id="contractor-form">
+    <form class="modal" id="contractor-form" autocomplete="off">
       <h2>Добавить контрагента</h2>
       <div class="field">
         <label for="field-contractor-name">Имя контрагента</label>
-        <input id="field-contractor-name" type="text" placeholder="Введите имя на русском" maxlength="60" />
+        <input id="field-contractor-name" type="text" name="contractor-title" placeholder="Введите имя на русском" maxlength="60" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
       </div>
       <div class="error" id="contractor-error"></div>
       <div class="modal-actions">
@@ -1563,7 +1631,7 @@
           <button type="button" class="btn-primary" id="cabinet-start-create">Создать кабинет</button>
         </div>
       </div>
-      <form id="cabinet-form" class="hidden" novalidate>
+      <form id="cabinet-form" class="hidden" novalidate autocomplete="off">
         <div class="field">
           <label>Тип кабинета</label>
           <div class="type-toggle">
@@ -1595,7 +1663,7 @@
         </div>
         <div class="field" id="cab-name-field">
           <label for="field-cab-name">Имя в кабинете</label>
-          <input id="field-cab-name" type="text" maxlength="60" placeholder="Как подписывать кабинет" />
+          <input id="field-cab-name" type="text" name="cabinet-title" maxlength="60" placeholder="Как подписывать кабинет" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
         </div>
         <div class="field hidden" id="cab-contractor-field">
           <label for="field-cab-contractor">Карточка контрагента</label>
@@ -1611,7 +1679,7 @@
   </div>
 
       <div class="overlay" id="sort-overlay" role="dialog" aria-modal="true">
-    <form class="modal" id="sort-form" novalidate>
+    <form class="modal" id="sort-form" novalidate autocomplete="off">
       <h2>Привязать выплату к долгу</h2>
       <p class="confirm-text" id="sort-summary"></p>
       <div class="field">
@@ -1627,7 +1695,7 @@
   </div>
 
   <div class="overlay" id="pay-edit-overlay" role="dialog" aria-modal="true">
-    <form class="modal" id="pay-edit-form" novalidate>
+    <form class="modal" id="pay-edit-form" novalidate autocomplete="off">
       <h2>Изменить выплату</h2>
       <div class="field">
         <label for="edit-pay-date">Дата выплаты</label>
@@ -1643,7 +1711,7 @@
       </div>
       <div class="field">
         <label for="edit-pay-comment">Комментарий</label>
-        <input id="edit-pay-comment" type="text" placeholder="Необязательно" />
+        <input id="edit-pay-comment" type="text" name="edit-pay-note" placeholder="Необязательно" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="true" inputmode="text" enterkeyhint="done" data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
       </div>
       <div class="error" id="pay-edit-error"></div>
       <div class="modal-actions">
@@ -1701,13 +1769,14 @@
     </form>
   </div>
 
+  <div id="keyboard-fill" aria-hidden="true"></div>
   <div class="toast" id="toast"></div>
 
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "70";
+    const APP_BUILD = "71";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -5339,7 +5408,44 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         body.style.top = "";
         window.scrollTo(0, y);
       }
+      syncKeyboardChrome();
     }
+
+    function syncKeyboardChrome() {
+      const root = document.documentElement;
+      const vv = window.visualViewport;
+      const layoutH = window.innerHeight || root.clientHeight || 0;
+      if (!vv) {
+        root.style.setProperty("--vv-top", "0px");
+        root.style.setProperty("--vv-left", "0px");
+        root.style.setProperty("--vv-width", "100%");
+        root.style.setProperty("--vv-height", layoutH + "px");
+        root.style.setProperty("--kb-gap", "0px");
+        root.classList.remove("keyboard-open");
+        return;
+      }
+      const gap = Math.max(0, layoutH - vv.height - vv.offsetTop);
+      root.style.setProperty("--vv-top", vv.offsetTop + "px");
+      root.style.setProperty("--vv-left", vv.offsetLeft + "px");
+      root.style.setProperty("--vv-width", vv.width + "px");
+      root.style.setProperty("--vv-height", vv.height + "px");
+      root.style.setProperty("--kb-gap", gap + "px");
+      const focused = document.activeElement;
+      const typing = !!(focused && focused.matches && focused.matches("input, textarea, select"));
+      root.classList.toggle("keyboard-open", gap > 60 || (typing && gap > 0));
+    }
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncKeyboardChrome);
+      window.visualViewport.addEventListener("scroll", syncKeyboardChrome);
+    }
+    window.addEventListener("resize", syncKeyboardChrome);
+    window.addEventListener("orientationchange", () => {
+      setTimeout(syncKeyboardChrome, 250);
+    });
+    document.addEventListener("focusin", () => setTimeout(syncKeyboardChrome, 50));
+    document.addEventListener("focusout", () => setTimeout(syncKeyboardChrome, 180));
+    syncKeyboardChrome();
 
     document.querySelectorAll(".overlay").forEach((overlay) => {
       new MutationObserver(refreshOverlayLock).observe(overlay, { attributes: true, attributeFilter: ["class"] });
