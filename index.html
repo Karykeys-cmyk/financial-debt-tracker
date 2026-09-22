@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="67" />
+  <meta name="app-build" content="68" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#ffffff" />
   <meta http-equiv="Expires" content="0" />
@@ -14,9 +14,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=67" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=67" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=67" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=68" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=68" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=68" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -293,6 +293,54 @@
 
     .session-actions .back-btn:hover {
       transform: none;
+    }
+
+    .trash-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: min(520px, 56vh);
+      overflow: auto;
+      margin: 4px 0 12px;
+    }
+
+    .trash-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .trash-item .trash-kind {
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .trash-item .trash-title {
+      font-weight: 650;
+    }
+
+    .trash-item .trash-meta {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+
+    .trash-item .actions {
+      flex-shrink: 0;
+      display: flex;
+      gap: 6px;
+    }
+
+    .modal.trash-modal {
+      width: min(640px, 100%);
     }
 
     .cabinet-list {
@@ -1325,7 +1373,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=67" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=68" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1565,6 +1613,19 @@
     </form>
   </div>
 
+  <div class="overlay" id="trash-overlay" role="dialog" aria-modal="true">
+    <div class="modal trash-modal">
+      <h2>Удалённые</h2>
+      <p class="confirm-text">Сюда попадают удалённые долги и выплаты. Их можно вернуть или стереть навсегда.</p>
+      <div class="modal-scroll">
+        <div id="trash-list" class="trash-list"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="trash-close">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
   <div class="overlay" id="confirm-overlay" role="dialog" aria-modal="true">
     <div class="modal">
       <h2 id="confirm-title">Удалить запись?</h2>
@@ -1606,7 +1667,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "67";
+    const APP_BUILD = "68";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -1831,6 +1892,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(book.deletedRecordIds)) book.deletedRecordIds = [];
       if (!Array.isArray(book.deletedPaymentIds)) book.deletedPaymentIds = [];
       if (!Array.isArray(book.deletedContractorNames)) book.deletedContractorNames = [];
+      if (!Array.isArray(book.deletedItems)) book.deletedItems = [];
       return book;
     }
 
@@ -2104,6 +2166,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(book.deletedRecordIds)) book.deletedRecordIds = [];
       if (!Array.isArray(book.deletedPaymentIds)) book.deletedPaymentIds = [];
       if (!Array.isArray(book.deletedContractorNames)) book.deletedContractorNames = [];
+      if (!Array.isArray(book.deletedItems)) book.deletedItems = [];
       const live = liveIdsInDict(book.contractors);
       book.deletedPaymentIds = book.deletedPaymentIds.filter((id) => !live.has(id));
       Object.keys(book.contractors).forEach((name) => {
@@ -2112,6 +2175,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           book.deletedRecordIds,
           book.deletedPaymentIds
         );
+      });
+      const liveRecs = liveRecordIdsInDict(book.contractors);
+      const livePays = liveIdsInDict(book.contractors);
+      book.deletedItems = (book.deletedItems || []).filter((item) => {
+        if (item.kind === "record" && item.record?.id && liveRecs.has(item.record.id)) return false;
+        if (item.kind === "payment" && item.payment?.id && livePays.has(item.payment.id)) return false;
+        return Boolean(item && item.id);
       });
       return book;
     }
@@ -2122,6 +2192,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
+      if (!Array.isArray(data.deletedItems)) data.deletedItems = [];
       migrateBook(data);
       Object.keys(data.userBooks || {}).forEach((login) => {
         data.userBooks[login] = migrateBook(data.userBooks[login] || {});
@@ -2139,6 +2210,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         deletedRecordIds: [],
         deletedPaymentIds: [],
         deletedContractorNames: [],
+        deletedItems: [],
         deletedCabinetLogins: [],
         cabinets: [],
         userBooks: {}
@@ -2169,6 +2241,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(data.deletedRecordIds)) data.deletedRecordIds = [];
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
+      if (!Array.isArray(data.deletedItems)) data.deletedItems = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       if (!options || !options.skipRemote) queueSync();
     }
@@ -2177,6 +2250,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     if (!Array.isArray(db.deletedRecordIds)) db.deletedRecordIds = [];
     if (!Array.isArray(db.deletedPaymentIds)) db.deletedPaymentIds = [];
     if (!Array.isArray(db.deletedContractorNames)) db.deletedContractorNames = [];
+    if (!Array.isArray(db.deletedItems)) db.deletedItems = [];
     saveData(db, { skipRemote: true });
 
     const syncState = { status: "busy", message: "Подключение к облаку…" };
@@ -2227,6 +2301,74 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         });
       });
       return ids;
+    }
+
+    function liveRecordIdsInDict(contractors) {
+      const ids = new Set();
+      Object.values(contractors || {}).forEach((c) => {
+        (c.records || []).forEach((r) => { if (r && r.id) ids.add(r.id); });
+      });
+      return ids;
+    }
+
+    function cloneJson(value) {
+      return value == null ? null : JSON.parse(JSON.stringify(value));
+    }
+
+    function ensureTrashShape(store) {
+      if (!store) return store;
+      if (!Array.isArray(store.deletedItems)) store.deletedItems = [];
+      if (!Array.isArray(store.deletedRecordIds)) store.deletedRecordIds = [];
+      if (!Array.isArray(store.deletedPaymentIds)) store.deletedPaymentIds = [];
+      return store;
+    }
+
+    function trashItems(store) {
+      return (ensureTrashShape(store || activeStore()).deletedItems || []).slice();
+    }
+
+    function mergeTrash(olderItems, newerItems, liveRecs, livePays) {
+      const map = new Map();
+      [...(olderItems || []), ...(newerItems || [])].forEach((item) => {
+        if (!item || !item.id) return;
+        if (item.kind === "record" && item.record?.id && liveRecs.has(item.record.id)) return;
+        if (item.kind === "payment" && item.payment?.id && livePays.has(item.payment.id)) return;
+        map.set(item.id, item);
+      });
+      return [...map.values()].sort((a, b) => String(b.deletedAt || "").localeCompare(String(a.deletedAt || "")));
+    }
+
+    function pushTrash(store, item) {
+      ensureTrashShape(store);
+      if (!item.id) item.id = uid();
+      if (!item.deletedAt) item.deletedAt = todayIso();
+      store.deletedItems = store.deletedItems.filter((x) => {
+        if (item.kind === "record" && x.kind === "record" && x.record?.id && x.record.id === item.record?.id) return false;
+        if (item.kind === "payment" && x.kind === "payment" && x.payment?.id && x.payment.id === item.payment?.id) return false;
+        return x.id !== item.id;
+      });
+      store.deletedItems.unshift(item);
+      return item;
+    }
+
+    function rememberDeletedRecord(store, contractorName, rec) {
+      if (!rec || !rec.id) return;
+      pushTrash(store, {
+        kind: "record",
+        contractor: contractorName,
+        record: cloneJson(rec),
+        payment: null
+      });
+    }
+
+    function rememberDeletedPayment(store, contractorName, pay) {
+      if (!pay || !pay.id) return;
+      pushTrash(store, {
+        kind: "payment",
+        contractor: contractorName,
+        record: null,
+        payment: cloneJson(pay)
+      });
     }
 
     function livePaymentIds(data) {
@@ -2320,7 +2462,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function mergeBookMeta(localBook, remoteBook, newerBook, olderBook) {
       const newerLive = liveIdsInDict(newerBook?.contractors);
+      const newerLiveRecs = liveRecordIdsInDict(newerBook?.contractors);
       const deleted = new Set([...(localBook.deletedRecordIds || []), ...(remoteBook.deletedRecordIds || [])]);
+      newerLiveRecs.forEach((id) => deleted.delete(id));
       const deletedPays = new Set(newerBook.deletedPaymentIds || []);
       (olderBook.deletedPaymentIds || []).forEach((id) => {
         if (id && !newerLive.has(id)) deletedPays.add(id);
@@ -2339,7 +2483,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ),
         deletedRecordIds: [...deleted],
         deletedPaymentIds: [...deletedPays],
-        deletedContractorNames: [...deletedNames]
+        deletedContractorNames: [...deletedNames],
+        deletedItems: mergeTrash(olderBook?.deletedItems, newerBook?.deletedItems, newerLiveRecs, newerLive)
       };
     }
 
@@ -2357,6 +2502,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       out.deletedRecordIds = adminMerged.deletedRecordIds;
       out.deletedPaymentIds = adminMerged.deletedPaymentIds;
       out.deletedContractorNames = adminMerged.deletedContractorNames;
+      out.deletedItems = adminMerged.deletedItems || [];
       out.ownerName = newer.ownerName || local.ownerName || OWNER_NAME;
       const deletedCabs = new Set([...(local.deletedCabinetLogins || []), ...(remote.deletedCabinetLogins || [])]);
       const cabMap = new Map();
@@ -2458,6 +2604,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
       parts.push((data?.cabinets || []).map((c) => c.login).join(","));
       parts.push((data?.deletedRecordIds || []).join(","));
+      parts.push((data?.deletedItems || []).map((x) => x.id).join(","));
       return parts.join("|");
     }
 
@@ -3188,6 +3335,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           </div>
           <div class="session-actions">
             ${isAdmin() ? `<button type="button" class="back-btn" id="open-cabinets">Личные кабинеты</button>` : ""}
+            <button type="button" class="back-btn" id="open-trash">Удалённые${trashItems().length ? ` <span class="tab-count">${trashItems().length}</span>` : ""}</button>
             <button type="button" class="back-btn" id="logout-btn">Выйти</button>
           </div>
         </div>
@@ -3611,6 +3759,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
       document.getElementById("logout-btn")?.addEventListener("click", logout);
       document.getElementById("open-cabinets")?.addEventListener("click", openCabinetModal);
+      document.getElementById("open-trash")?.addEventListener("click", openTrashModal);
       document.getElementById("home-period-mode")?.addEventListener("change", (e) => {
         state.homePeriodMode = e.target.value;
         render();
@@ -3932,6 +4081,156 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         }
       });
       return moved;
+    }
+
+    function trashLabel(item) {
+      if (item.kind === "payment") {
+        const p = item.payment || {};
+        return formatMoney(p.amount) + (p.paymentMethod ? " · " + p.paymentMethod : "");
+      }
+      const r = item.record || {};
+      return (r.category || "Долг") + (r.subCategory ? " · " + r.subCategory : "") + " · " + formatMoney(r.amount);
+    }
+
+    function trashMeta(item) {
+      const when = item.deletedAt ? formatDate(item.deletedAt) : "";
+      if (item.kind === "payment") {
+        const p = item.payment || {};
+        return [item.contractor, p.date ? formatDate(p.date) : "", p.comment, when ? "удалено " + when : ""].filter(Boolean).join(" · ");
+      }
+      const r = item.record || {};
+      return [item.contractor, recordDateLabel(r), r.comment, when ? "удалено " + when : ""].filter(Boolean).join(" · ");
+    }
+
+    function fillTrashModal() {
+      const list = document.getElementById("trash-list");
+      const items = trashItems().sort((a, b) => String(b.deletedAt || "").localeCompare(String(a.deletedAt || "")));
+      if (!items.length) {
+        list.innerHTML = `<div class="empty" style="padding:18px 0;">Удалённых записей нет</div>`;
+        return;
+      }
+      list.innerHTML = items.map((item) => `
+        <div class="trash-item">
+          <div>
+            <div class="trash-kind">${item.kind === "payment" ? "Выплата" : "Долг"}</div>
+            <div class="trash-title">${escapeHtml(trashLabel(item))}</div>
+            <div class="trash-meta">${escapeHtml(trashMeta(item))}</div>
+          </div>
+          <span class="actions">
+            <button type="button" class="text-btn" data-restore-trash="${escapeHtml(item.id)}">Вернуть</button>
+            <button type="button" class="icon-btn danger" data-purge-trash="${escapeHtml(item.id)}" title="Удалить навсегда" aria-label="Удалить навсегда">🗑️</button>
+          </span>
+        </div>
+      `).join("");
+      list.querySelectorAll("[data-restore-trash]").forEach((btn) => {
+        btn.addEventListener("click", () => restoreTrashItem(btn.getAttribute("data-restore-trash")));
+      });
+      list.querySelectorAll("[data-purge-trash]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.pendingDelete = { kind: "trash-purge", id: btn.getAttribute("data-purge-trash") };
+          openConfirm("Удалить навсегда?", "Эту запись нельзя будет вернуть из «Удалённых».");
+        });
+      });
+    }
+
+    function openTrashModal() {
+      fillTrashModal();
+      document.getElementById("trash-overlay").classList.add("open");
+    }
+
+    function closeTrashModal() {
+      document.getElementById("trash-overlay").classList.remove("open");
+    }
+
+    function ensureContractorSlot(store, name) {
+      if (!name) return null;
+      if (!store.contractors) store.contractors = {};
+      if (!store.contractors[name]) {
+        store.contractors[name] = { records: [], unsortedPayments: [], autoPaymentsShelved: true };
+      }
+      store.deletedContractorNames = (store.deletedContractorNames || []).filter((n) => n !== name);
+      return store.contractors[name];
+    }
+
+    function restoreTrashItem(trashId) {
+      const store = ensureTrashShape(activeStore());
+      const item = (store.deletedItems || []).find((x) => x.id === trashId);
+      if (!item) {
+        showToast("Запись в корзине не найдена");
+        return;
+      }
+      if (item.kind === "payment") {
+        const name = item.contractor || state.contractor;
+        const contractor = ensureContractorSlot(store, name) || contractorsMap()[name];
+        if (!contractor) {
+          showToast("Некуда вернуть выплату");
+          return;
+        }
+        if (!Array.isArray(contractor.unsortedPayments)) contractor.unsortedPayments = [];
+        const pay = normalizePayment(item.payment);
+        if (pay && !contractor.unsortedPayments.some((p) => p.id === pay.id)) {
+          contractor.unsortedPayments.unshift(pay);
+        }
+        store.deletedPaymentIds = (store.deletedPaymentIds || []).filter((id) => id !== pay?.id);
+        store.deletedItems = store.deletedItems.filter((x) => x.id !== trashId);
+        saveData(db);
+        state.contractor = name;
+        state.view = "profile";
+        state.tab = "sort";
+        state.periodMode = "all";
+        closeTrashModal();
+        render();
+        showToast("Выплата вернулась в «Требует сортировки»");
+        return;
+      }
+      const rec = item.record ? migrateRecord(item.record) : null;
+      if (!rec || !rec.id) {
+        showToast("Долг не удалось восстановить");
+        return;
+      }
+      const name = item.contractor || state.contractor;
+      const map = contractorsMap();
+      let contractor = map[name];
+      if (!contractor) contractor = ensureContractorSlot(store, name);
+      if (!contractor) {
+        showToast("Некуда вернуть долг");
+        return;
+      }
+      if (!Array.isArray(contractor.records)) contractor.records = [];
+      if (!contractor.records.some((r) => r.id === rec.id)) contractor.records.unshift(rec);
+      const payIds = new Set((rec.payments || []).map((p) => p && p.id).filter(Boolean));
+      contractor.unsortedPayments = (contractor.unsortedPayments || []).filter((p) => !payIds.has(p.id));
+      store.deletedRecordIds = (store.deletedRecordIds || []).filter((id) => id !== rec.id);
+      store.deletedItems = store.deletedItems.filter((x) => x.id !== trashId);
+      saveData(db);
+      state.contractor = name;
+      state.view = "profile";
+      if (isFullyPaid(rec)) {
+        if (rec.category === "Аренда помещения") {
+          state.workTab = "rental";
+          if (RENTAL_SUBS.includes(rec.subCategory)) state.subTab = rec.subCategory;
+        } else if (rec.category === "Аренда ДТФ") {
+          state.workTab = "dtf";
+        } else if (rec.category === "Счета") {
+          state.workTab = "invoices";
+        } else {
+          state.workTab = "debt";
+        }
+        state.tab = "paid";
+        state.periodMode = "all";
+        state.recordSearch = "";
+      } else {
+        showReopenedDebt(rec);
+      }
+      closeTrashModal();
+      render();
+      showToast("Долг восстановлен");
+    }
+
+    function purgeTrashItem(trashId) {
+      const store = ensureTrashShape(activeStore());
+      store.deletedItems = (store.deletedItems || []).filter((x) => x.id !== trashId);
+      saveData(db);
     }
 
     function syncRecordFields() {
@@ -4326,7 +4625,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       state.pendingDelete = { kind: "record", id };
       openConfirm(
         "Удалить долг?",
-        "Сам долг пропадёт. Выплаты по нему вернутся во вкладку «Требует сортировки» — их можно привязать заново."
+        "Долг уйдёт в «Удалённые», его можно вернуть. Выплаты сначала попадут в «Требует сортировки»."
       );
     }
 
@@ -4341,7 +4640,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function askDeleteUnsorted(id) {
       state.pendingDelete = { kind: "unsorted", id };
-      openConfirm("Удалить выплату?", "Выплата пропадёт из списка «Требует сортировки».");
+      openConfirm("Удалить выплату?", "Выплата уйдёт в «Удалённые». Оттуда её можно вернуть.");
     }
 
     function openSortAssign(id) {
@@ -4552,9 +4851,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         store.deletedPaymentIds = store.deletedPaymentIds || [];
         records.forEach((r) => {
           if (r.id && !store.deletedRecordIds.includes(r.id)) store.deletedRecordIds.push(r.id);
+          rememberDeletedRecord(store, name, r);
         });
         (store.contractors[name]?.unsortedPayments || []).forEach((p) => {
           if (p.id && !store.deletedPaymentIds.includes(p.id)) store.deletedPaymentIds.push(p.id);
+          rememberDeletedPayment(store, name, p);
         });
         store.deletedContractorNames = store.deletedContractorNames || [];
         if (!store.deletedContractorNames.includes(name)) store.deletedContractorNames.push(name);
@@ -4590,22 +4891,34 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       if (pending.kind === "unsorted") {
         const contractor = contractorsMap()[state.contractor];
+        const pay = (contractor?.unsortedPayments || []).find((p) => p.id === pending.id);
         if (contractor) {
           contractor.unsortedPayments = (contractor.unsortedPayments || []).filter((p) => p.id !== pending.id);
         }
         store.deletedPaymentIds = store.deletedPaymentIds || [];
         if (pending.id && !store.deletedPaymentIds.includes(pending.id)) store.deletedPaymentIds.push(pending.id);
+        if (pay) rememberDeletedPayment(store, state.contractor, pay);
         saveData(db);
         state.pendingDelete = null;
         document.getElementById("confirm-overlay").classList.remove("open");
         render();
-        showToast("Выплата удалена");
+        showToast("Выплата ушла в «Удалённые»");
+        return;
+      }
+      if (pending.kind === "trash-purge") {
+        purgeTrashItem(pending.id);
+        state.pendingDelete = null;
+        document.getElementById("confirm-overlay").classList.remove("open");
+        fillTrashModal();
+        render();
+        showToast("Удалено навсегда");
         return;
       }
       const id = pending.id;
       if (!id) return;
       const contractor = contractorsMap()[state.contractor];
       const rec = (contractor?.records || []).find((r) => r.id === id);
+      if (rec) rememberDeletedRecord(store, state.contractor, rec);
       const moved = shelveRecordPayments(contractor, rec);
       store.deletedRecordIds = store.deletedRecordIds || [];
       if (!store.deletedRecordIds.includes(id)) store.deletedRecordIds.push(id);
@@ -4622,8 +4935,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       render();
       showToast(moved
-        ? "Долг удалён. " + moved + (moved === 1 ? " выплата ушла" : " выплаты ушли") + " в «Требует сортировки»"
-        : "Долг удалён");
+        ? "Долг в «Удалённых». " + moved + (moved === 1 ? " выплата ушла" : " выплаты ушли") + " в «Требует сортировки»"
+        : "Долг ушёл в «Удалённые»");
     }
 
     function openContractorModal() {
@@ -4864,6 +5177,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       closeSyncModal();
       closeSortAssign();
       closePayEdit();
+      closeTrashModal();
       document.getElementById("confirm-overlay").classList.remove("open");
       state.pendingDelete = null;
     }
@@ -4925,6 +5239,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     document.getElementById("pay-edit-cancel").addEventListener("click", closePayEdit);
     document.getElementById("pay-edit-overlay").addEventListener("click", (e) => {
       if (e.target.id === "pay-edit-overlay") closePayEdit();
+    });
+    document.getElementById("trash-close").addEventListener("click", closeTrashModal);
+    document.getElementById("trash-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "trash-overlay") closeTrashModal();
     });
     document.getElementById("confirm-cancel").addEventListener("click", () => {
       document.getElementById("confirm-overlay").classList.remove("open");
