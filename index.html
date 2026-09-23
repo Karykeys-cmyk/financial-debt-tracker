@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="71" />
+  <meta name="app-build" content="72" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=71" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=71" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=71" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=72" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=72" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=72" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -646,6 +646,21 @@
     .contractor-card .overdue-mark {
       font-size: 0.82rem;
       font-weight: 650;
+    }
+
+    .contractor-card.owner-card .stat.owed {
+      grid-column: 1 / -1;
+      background: rgba(74, 158, 255, 0.14);
+      border: 1px solid rgba(74, 158, 255, 0.28);
+    }
+
+    .contractor-card.owner-card .stat.owed .stat-label {
+      color: var(--debit);
+    }
+
+    .contractor-card.owner-card .stat.owed .stat-value {
+      font-size: 1.2rem;
+      color: var(--debit);
     }
 
     tr.overdue-row td {
@@ -1481,7 +1496,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=71" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=72" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1776,7 +1791,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "71";
+    const APP_BUILD = "72";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -1972,6 +1987,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function isLinkedOwnerCard(name) {
       return isDebtor() && name === ownerName();
+    }
+
+    function theyOweYouLabel() {
+      return "Вам должны";
+    }
+
+    function youOweLabel() {
+      return "Ваш долг";
     }
 
     function canDeleteContractor(name) {
@@ -3010,10 +3033,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return r && r.category === "Деньги в долг" && r.loanSide === "in";
     }
 
-    function recordTypeLabel(r) {
+    function recordTypeLabel(r, name) {
+      const ownerView = isLinkedOwnerCard(name || state.contractor);
       if (isFullyPaid(r)) return "Погашен";
-      if (isBorrowed(r)) return "Наш долг";
-      if (r.category === "Деньги в долг") return "Выдали";
+      if (isBorrowed(r)) return ownerView ? theyOweYouLabel() : "Наш долг";
+      if (r.category === "Деньги в долг") return ownerView ? youOweLabel() : "Выдали";
       return "Долг";
     }
 
@@ -3482,8 +3506,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const ours = ourDebt(name);
         const sortCount = unsortedPayments(name).length;
         const overdue = hasOverdueDebt(name);
-        const meta = isLinkedOwnerCard(name)
-          ? ("Карточка с долгом у " + ownerName())
+        const linked = isLinkedOwnerCard(name);
+        const meta = linked
+          ? ("Сколько " + ownerName() + " должна вам")
           : (cfg.hasRental ? "Аренда и займы" : "Только займы");
         const split = cfg.hasRental ? debitBreakdown(name) : null;
         const splitHtml = split ? `
@@ -3494,13 +3519,20 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               )).join("")}
             </div>
         ` : "";
-        return `
-          <div class="contractor-card-wrap">
-          <button class="contractor-card ${overdue ? "overdue" : ""}" data-open="${escapeHtml(name)}">
-            <div class="icon">👤</div>
-            <div class="name">${escapeHtml(name)}</div>
-            <div class="meta">${escapeHtml(meta)}</div>
-            <div class="card-stats">
+        const owedStats = linked ? `
+              <div class="stat owed">
+                <div class="stat-label">${escapeHtml(theyOweYouLabel())}</div>
+                <div class="stat-value">${formatMoney(ours)}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">${escapeHtml(youOweLabel())}</div>
+                <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">${escapeHtml(analytics.cardProfitLabel)}</div>
+                <div class="stat-value profit">${formatMoney(profit)}</div>
+              </div>
+        ` : `
               <div class="stat">
                 <div class="stat-label">Сальдо</div>
                 <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
@@ -3517,6 +3549,15 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 <div class="stat-label">Потери</div>
                 <div class="stat-value ${loss ? "loss" : ""}">${formatMoney(loss)}</div>
               </div>
+        `;
+        return `
+          <div class="contractor-card-wrap">
+          <button class="contractor-card ${overdue ? "overdue" : ""} ${linked ? "owner-card" : ""}" data-open="${escapeHtml(name)}">
+            <div class="icon">👤</div>
+            <div class="name">${escapeHtml(name)}</div>
+            <div class="meta">${escapeHtml(meta)}</div>
+            <div class="card-stats">
+              ${owedStats}
             </div>
             ${splitHtml}
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
@@ -3551,7 +3592,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </div>
         <div class="home-totals">
           <div class="summary-card saldo">
-            <div class="label">Сумма долгов</div>
+            <div class="label">${isDebtor() ? youOweLabel() : "Сумма долгов"}</div>
             <div class="value ${saldoTone(totalsAll.debt)}">${formatMoney(totalsAll.debt)}</div>
           </div>
           <div class="summary-card">
@@ -3559,8 +3600,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="value profit">${formatMoney(analytics.profit)}</div>
           </div>
           <div class="summary-card saldo">
-            <div class="label">Сумма наших долгов</div>
-            <div class="value ${totalsAll.ours ? "negative" : "zero"}">${formatMoney(totalsAll.ours)}</div>
+            <div class="label">${isDebtor() ? theyOweYouLabel() : "Сумма наших долгов"}</div>
+            <div class="value ${totalsAll.ours ? (isDebtor() ? "positive" : "negative") : "zero"}">${formatMoney(totalsAll.ours)}</div>
           </div>
           <div class="summary-card">
             <div class="label">${escapeHtml(analytics.lossLabel)}</div>
@@ -3817,6 +3858,32 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <div class="analytics-caption">${escapeHtml(periodRangeLabel())}</div>
         </div>
         <div class="summary">
+          ${isLinkedOwnerCard(name) ? `
+          <div class="summary-card saldo">
+            <div class="label">${theyOweYouLabel()}</div>
+            <div class="value ${ours ? "positive" : "zero"}">${formatMoney(ours)}</div>
+          </div>
+          <div class="summary-card saldo">
+            <div class="label">${youOweLabel()}</div>
+            <div class="value ${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Дебет</div>
+            <div class="value">${formatMoney(t.debit)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Кредит</div>
+            <div class="value">${formatMoney(t.credit)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Прибыль за всё время</div>
+            <div class="value profit">${formatMoney(allTimeProfit)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Потери на процентах</div>
+            <div class="value loss">${formatMoney(allTimeLoss)}</div>
+          </div>
+          ` : `
           <div class="summary-card">
             <div class="label">Дебет</div>
             <div class="value">${formatMoney(t.debit)}</div>
@@ -3841,6 +3908,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="label">Потери на процентах</div>
             <div class="value loss">${formatMoney(allTimeLoss)}</div>
           </div>
+          `}
         </div>
         ${split ? `
         <div class="debit-breakdown">
@@ -4021,7 +4089,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function debtLabel(r) {
       const parts = [];
-      if (isBorrowed(r)) parts.push("Наш долг");
+      if (isBorrowed(r)) parts.push(isLinkedOwnerCard(state.contractor) ? theyOweYouLabel() : "Наш долг");
       else parts.push(r.category || "Долг");
       if (r.subCategory) parts.push(r.subCategory);
       if (r.invoiceNumber) parts.push("№ " + r.invoiceNumber);
