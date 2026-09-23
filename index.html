@@ -5599,6 +5599,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     window.__mergeFinanceData = mergeFinanceData;
 
     render();
+    syncBrandBarOffset();
     setSyncStatus(syncState.status, syncState.message);
     if (getSyncConfig().key) {
       setSyncStatus("busy", "Синхронизация…");
