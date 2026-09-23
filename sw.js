@@ -1,4 +1,4 @@
-const BUILD = "73";
+const BUILD = "74";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

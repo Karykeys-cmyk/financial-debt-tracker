@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="73" />
+  <meta name="app-build" content="74" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=73" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=73" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=73" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=74" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=74" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=74" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -37,6 +37,7 @@
       --saldo-minus: #ff6b6b;
       --radius: 14px;
       --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      --brand-bar-h: 96px;
     }
 
     * {
@@ -144,9 +145,18 @@
     }
 
     .brand-bar {
-      position: sticky;
+      position: fixed;
       top: 0;
-      z-index: 8;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 15;
+    }
+
+    .brand-bar-slot {
+      height: var(--brand-bar-h, 96px);
+      flex-shrink: 0;
+      pointer-events: none;
     }
 
     .brand-bar-inner {
@@ -1505,7 +1515,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=73" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=74" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1517,6 +1527,7 @@
       </div>
     </div>
   </header>
+  <div class="brand-bar-slot" aria-hidden="true"></div>
   <div class="app" id="app"></div>
 
   <div class="overlay" id="record-overlay" role="dialog" aria-modal="true">
@@ -1800,7 +1811,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "73";
+    const APP_BUILD = "74";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3340,12 +3351,20 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       showToast.timer = setTimeout(() => el.classList.remove("show"), ms);
     }
 
+    function syncBrandBarOffset() {
+      const bar = document.querySelector(".brand-bar");
+      if (!bar) return;
+      const h = Math.ceil(bar.getBoundingClientRect().height);
+      if (h) document.documentElement.style.setProperty("--brand-bar-h", h + "px");
+    }
+
     function render() {
       if (state.paymentFilter === "На счёт юрлица") state.paymentFilter = "Безналичный расчёт";
       const root = document.getElementById("app");
       if (!sessionUser()) {
         root.innerHTML = renderLogin();
         bindLogin();
+        syncBrandBarOffset();
         return;
       }
       if (state.view === "home") {
@@ -3354,6 +3373,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         root.innerHTML = renderProfile();
       }
       bindView();
+      syncBrandBarOffset();
     }
 
     function bindPasswordToggles(root) {
@@ -5529,6 +5549,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       window.visualViewport.addEventListener("scroll", syncKeyboardChrome);
     }
     window.addEventListener("resize", syncKeyboardChrome);
+    window.addEventListener("resize", syncBrandBarOffset);
+    window.addEventListener("orientationchange", () => setTimeout(syncBrandBarOffset, 250));
+    document.querySelector(".brand-logo")?.addEventListener("load", syncBrandBarOffset);
     window.addEventListener("orientationchange", () => {
       setTimeout(syncKeyboardChrome, 250);
     });
