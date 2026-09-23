@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="72" />
+  <meta name="app-build" content="73" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=72" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=72" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=72" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=73" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=73" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=73" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -648,19 +648,18 @@
       font-weight: 650;
     }
 
-    .contractor-card.owner-card .stat.owed {
-      grid-column: 1 / -1;
-      background: rgba(74, 158, 255, 0.14);
-      border: 1px solid rgba(74, 158, 255, 0.28);
+    .contractor-card,
+    .contractor-card-wrap,
+    .contractors {
+      overflow: visible;
     }
 
-    .contractor-card.owner-card .stat.owed .stat-label {
-      color: var(--debit);
+    .contractor-card.owner-card .stat.saldo-stat .stat-label {
+      color: var(--saldo-plus);
     }
 
-    .contractor-card.owner-card .stat.owed .stat-value {
-      font-size: 1.2rem;
-      color: var(--debit);
+    .contractor-card.owner-card .stat.saldo-stat .stat-value {
+      font-size: 1.15rem;
     }
 
     tr.overdue-row td {
@@ -764,6 +763,7 @@
 
     .saldo-positive { color: var(--saldo-plus); }
     .saldo-negative { color: var(--saldo-minus); }
+    .saldo-zero { color: var(--text); }
 
     .add-contractor {
       border: 1px dashed rgba(74, 158, 255, 0.45);
@@ -1481,7 +1481,7 @@
     }
 
     @media (max-width: 760px) {
-      .app { padding: 6px 14px 36px; }
+      .app { padding: 6px 14px max(80px, calc(36px + env(safe-area-inset-bottom))); }
       .brand-bar-inner { padding: max(3px, env(safe-area-inset-top)) 10px 3px; }
       .brand-logo { height: 56px; }
       .sync-orb { width: 50px; height: 50px; }
@@ -1489,6 +1489,15 @@
       .desktop-table { display: none; }
       .mobile-list { display: flex; }
       .table-panel { overflow: visible; }
+      .analytics { padding: 12px 12px 10px; margin-bottom: 10px; }
+      .analytics-head { gap: 8px; }
+      .analytics-head select { min-width: 0; flex: 1 1 120px; padding: 8px 10px; }
+      .analytics-caption { margin-top: 6px; font-size: 0.8rem; }
+      .home-totals { gap: 8px; margin-bottom: 14px; }
+      .home-totals .summary-card { padding: 12px 10px; }
+      .home-totals .summary-card .value { font-size: 1.05rem; }
+      .session-bar { margin-bottom: 10px; }
+      .contractor-card { padding: 18px 14px 20px; }
     }
   </style>
 </head>
@@ -1496,7 +1505,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=72" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=73" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1791,7 +1800,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "72";
+    const APP_BUILD = "73";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3507,6 +3516,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const sortCount = unsortedPayments(name).length;
         const overdue = hasOverdueDebt(name);
         const linked = isLinkedOwnerCard(name);
+        const cardSaldo = linked ? ours : t.saldo;
+        const cardSaldoClass = linked
+          ? (ours ? "saldo-positive" : "saldo-zero")
+          : ("saldo-" + saldoTone(t.saldo));
         const meta = linked
           ? ("Сколько " + ownerName() + " должна вам")
           : (cfg.hasRental ? "Аренда и займы" : "Только займы");
@@ -3520,22 +3533,26 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             </div>
         ` : "";
         const owedStats = linked ? `
-              <div class="stat owed">
-                <div class="stat-label">${escapeHtml(theyOweYouLabel())}</div>
-                <div class="stat-value">${formatMoney(ours)}</div>
+              <div class="stat saldo-stat">
+                <div class="stat-label">Сальдо</div>
+                <div class="stat-value ${cardSaldoClass}">${formatMoney(cardSaldo)}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">${escapeHtml(analytics.cardProfitLabel)}</div>
+                <div class="stat-value profit">${formatMoney(profit)}</div>
               </div>
               <div class="stat">
                 <div class="stat-label">${escapeHtml(youOweLabel())}</div>
                 <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
               </div>
               <div class="stat">
-                <div class="stat-label">${escapeHtml(analytics.cardProfitLabel)}</div>
-                <div class="stat-value profit">${formatMoney(profit)}</div>
+                <div class="stat-label">Потери</div>
+                <div class="stat-value ${loss ? "loss" : ""}">${formatMoney(loss)}</div>
               </div>
         ` : `
               <div class="stat">
                 <div class="stat-label">Сальдо</div>
-                <div class="stat-value saldo-${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
+                <div class="stat-value ${cardSaldoClass}">${formatMoney(cardSaldo)}</div>
               </div>
               <div class="stat">
                 <div class="stat-label">${escapeHtml(analytics.cardProfitLabel)}</div>
@@ -3859,6 +3876,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </div>
         <div class="summary">
           ${isLinkedOwnerCard(name) ? `
+          <div class="summary-card saldo">
+            <div class="label">Сальдо</div>
+            <div class="value ${ours ? "positive" : "zero"}">${formatMoney(ours)}</div>
+          </div>
           <div class="summary-card saldo">
             <div class="label">${theyOweYouLabel()}</div>
             <div class="value ${ours ? "positive" : "zero"}">${formatMoney(ours)}</div>
