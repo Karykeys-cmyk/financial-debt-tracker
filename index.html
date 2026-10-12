@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="76" />
+  <meta name="app-build" content="77" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=76" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=76" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=76" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=77" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=77" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=77" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -331,7 +331,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       margin-bottom: 18px;
     }
 
@@ -340,6 +340,14 @@
       flex-direction: column;
       gap: 2px;
       min-width: 0;
+      overflow: hidden;
+    }
+
+    .session-who strong,
+    .session-who span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .session-who strong {
@@ -353,12 +361,88 @@
 
     .session-actions {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
+      flex-shrink: 0;
     }
 
     .session-actions .back-btn:hover {
       transform: none;
+    }
+
+    .session-menu {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .session-menu-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      min-height: 40px;
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-weight: 650;
+      box-shadow: var(--shadow);
+    }
+
+    .session-menu-btn[aria-expanded="true"] {
+      border-color: rgba(74, 158, 255, 0.45);
+      background: var(--accent-soft);
+    }
+
+    .session-menu-caret {
+      font-size: 0.72rem;
+      opacity: 0.7;
+      transition: transform 0.15s ease;
+    }
+
+    .session-menu-btn[aria-expanded="true"] .session-menu-caret {
+      transform: rotate(180deg);
+    }
+
+    .session-menu-list {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      min-width: min(248px, 78vw);
+      z-index: 16;
+      background: #121f3a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 6px;
+    }
+
+    .session-menu-list[hidden] {
+      display: none;
+    }
+
+    .session-menu-list button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+      padding: 11px 12px;
+      border-radius: 10px;
+      color: var(--text);
+    }
+
+    .session-menu-list button:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .session-menu-list .menu-current {
+      color: var(--text-secondary);
+    }
+
+    .session-menu-list .menu-danger {
+      color: var(--danger);
     }
 
     .trash-list {
@@ -1550,7 +1634,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=76" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=77" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1846,7 +1930,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "76";
+    const APP_BUILD = "77";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -2080,6 +2164,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(book.deletedPaymentIds)) book.deletedPaymentIds = [];
       if (!Array.isArray(book.deletedContractorNames)) book.deletedContractorNames = [];
       if (!Array.isArray(book.deletedItems)) book.deletedItems = [];
+      if (!Array.isArray(book.purgedTrashIds)) book.purgedTrashIds = [];
       return book;
     }
 
@@ -2361,6 +2446,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(book.deletedPaymentIds)) book.deletedPaymentIds = [];
       if (!Array.isArray(book.deletedContractorNames)) book.deletedContractorNames = [];
       if (!Array.isArray(book.deletedItems)) book.deletedItems = [];
+      if (!Array.isArray(book.purgedTrashIds)) book.purgedTrashIds = [];
       const live = liveIdsInDict(book.contractors);
       book.deletedPaymentIds = book.deletedPaymentIds.filter((id) => !live.has(id));
       Object.keys(book.contractors).forEach((name) => {
@@ -2372,10 +2458,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
       const liveRecs = liveRecordIdsInDict(book.contractors);
       const livePays = liveIdsInDict(book.contractors);
+      const purged = new Set(book.purgedTrashIds || []);
       book.deletedItems = (book.deletedItems || []).filter((item) => {
+        if (!item || !item.id || isPurgedTrash(purged, item)) return false;
         if (item.kind === "record" && item.record?.id && liveRecs.has(item.record.id)) return false;
         if (item.kind === "payment" && item.payment?.id && livePays.has(item.payment.id)) return false;
-        return Boolean(item && item.id);
+        return true;
       });
       return book;
     }
@@ -2387,6 +2475,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
       if (!Array.isArray(data.deletedItems)) data.deletedItems = [];
+      if (!Array.isArray(data.purgedTrashIds)) data.purgedTrashIds = [];
       migrateBook(data);
       Object.keys(data.userBooks || {}).forEach((login) => {
         data.userBooks[login] = migrateBook(data.userBooks[login] || {});
@@ -2405,6 +2494,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         deletedPaymentIds: [],
         deletedContractorNames: [],
         deletedItems: [],
+        purgedTrashIds: [],
         deletedCabinetLogins: [],
         cabinets: [],
         userBooks: {}
@@ -2436,6 +2526,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(data.deletedPaymentIds)) data.deletedPaymentIds = [];
       if (!Array.isArray(data.deletedContractorNames)) data.deletedContractorNames = [];
       if (!Array.isArray(data.deletedItems)) data.deletedItems = [];
+      if (!Array.isArray(data.purgedTrashIds)) data.purgedTrashIds = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       if (!options || !options.skipRemote) queueSync();
     }
@@ -2445,6 +2536,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     if (!Array.isArray(db.deletedPaymentIds)) db.deletedPaymentIds = [];
     if (!Array.isArray(db.deletedContractorNames)) db.deletedContractorNames = [];
     if (!Array.isArray(db.deletedItems)) db.deletedItems = [];
+    if (!Array.isArray(db.purgedTrashIds)) db.purgedTrashIds = [];
     saveData(db, { skipRemote: true });
 
     const syncState = { status: "busy", message: "Подключение к облаку…" };
@@ -2514,17 +2606,44 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!Array.isArray(store.deletedItems)) store.deletedItems = [];
       if (!Array.isArray(store.deletedRecordIds)) store.deletedRecordIds = [];
       if (!Array.isArray(store.deletedPaymentIds)) store.deletedPaymentIds = [];
+      if (!Array.isArray(store.purgedTrashIds)) store.purgedTrashIds = [];
       return store;
     }
 
-    function trashItems(store) {
-      return (ensureTrashShape(store || activeStore()).deletedItems || []).slice();
+    function trashContentKey(item) {
+      if (!item) return "";
+      if (item.kind === "record" && item.record?.id) return "record:" + item.record.id;
+      if (item.kind === "payment" && item.payment?.id) return "payment:" + item.payment.id;
+      return "";
     }
 
-    function mergeTrash(olderItems, newerItems, liveRecs, livePays) {
+    function isPurgedTrash(purged, item) {
+      if (!item || !purged) return false;
+      if (item.id && purged.has(item.id)) return true;
+      const key = trashContentKey(item);
+      return Boolean(key && purged.has(key));
+    }
+
+    function markPurgedTrash(store, item) {
+      ensureTrashShape(store);
+      const add = (id) => {
+        if (id && !store.purgedTrashIds.includes(id)) store.purgedTrashIds.push(id);
+      };
+      if (item?.id) add(item.id);
+      add(trashContentKey(item));
+    }
+
+    function trashItems(store) {
+      const s = ensureTrashShape(store || activeStore());
+      const purged = new Set(s.purgedTrashIds || []);
+      return (s.deletedItems || []).filter((item) => item && item.id && !isPurgedTrash(purged, item));
+    }
+
+    function mergeTrash(olderItems, newerItems, liveRecs, livePays, purged) {
       const map = new Map();
+      const gone = purged instanceof Set ? purged : new Set(purged || []);
       [...(olderItems || []), ...(newerItems || [])].forEach((item) => {
-        if (!item || !item.id) return;
+        if (!item || !item.id || isPurgedTrash(gone, item)) return;
         if (item.kind === "record" && item.record?.id && liveRecs.has(item.record.id)) return;
         if (item.kind === "payment" && item.payment?.id && livePays.has(item.payment.id)) return;
         map.set(item.id, item);
@@ -2536,6 +2655,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       ensureTrashShape(store);
       if (!item.id) item.id = uid();
       if (!item.deletedAt) item.deletedAt = todayIso();
+      const contentKey = trashContentKey(item);
+      store.purgedTrashIds = (store.purgedTrashIds || []).filter((id) => id !== item.id && id !== contentKey);
       store.deletedItems = store.deletedItems.filter((x) => {
         if (item.kind === "record" && x.kind === "record" && x.record?.id && x.record.id === item.record?.id) return false;
         if (item.kind === "payment" && x.kind === "payment" && x.payment?.id && x.payment.id === item.payment?.id) return false;
@@ -2665,6 +2786,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
       newerLive.forEach((id) => deletedPays.delete(id));
       const deletedNames = new Set([...(localBook.deletedContractorNames || []), ...(remoteBook.deletedContractorNames || [])]);
+      const purged = new Set([...(localBook.purgedTrashIds || []), ...(remoteBook.purgedTrashIds || [])]);
       return {
         contractors: mergeContractorDict(
           localBook.contractors,
@@ -2678,7 +2800,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         deletedRecordIds: [...deleted],
         deletedPaymentIds: [...deletedPays],
         deletedContractorNames: [...deletedNames],
-        deletedItems: mergeTrash(olderBook?.deletedItems, newerBook?.deletedItems, newerLiveRecs, newerLive)
+        deletedItems: mergeTrash(olderBook?.deletedItems, newerBook?.deletedItems, newerLiveRecs, newerLive, purged),
+        purgedTrashIds: [...purged]
       };
     }
 
@@ -2697,6 +2820,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       out.deletedPaymentIds = adminMerged.deletedPaymentIds;
       out.deletedContractorNames = adminMerged.deletedContractorNames;
       out.deletedItems = adminMerged.deletedItems || [];
+      out.purgedTrashIds = adminMerged.purgedTrashIds || [];
       out.ownerName = newer.ownerName || local.ownerName || OWNER_NAME;
       const deletedCabs = new Set([...(local.deletedCabinetLogins || []), ...(remote.deletedCabinetLogins || [])]);
       const cabMap = new Map();
@@ -2799,6 +2923,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       parts.push((data?.cabinets || []).map((c) => c.login).join(","));
       parts.push((data?.deletedRecordIds || []).join(","));
       parts.push((data?.deletedItems || []).map((x) => x.id).join(","));
+      parts.push((data?.purgedTrashIds || []).join(","));
       return parts.join("|");
     }
 
@@ -3602,9 +3727,27 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       render();
     }
 
+    function closeSessionMenu() {
+      const btn = document.getElementById("session-menu-btn");
+      const list = document.getElementById("session-menu-list");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+      if (list) list.hidden = true;
+    }
+
+    function goHome() {
+      state.view = "home";
+      state.contractor = null;
+      closeSessionMenu();
+      render();
+    }
+
     function renderSessionBar() {
       const s = sessionUser();
       if (!s) return "";
+      const trashCount = trashItems().length;
+      const onHome = state.view === "home";
+      const profileName = state.view === "profile" ? state.contractor : "";
+      const canDropCard = Boolean(profileName && canDeleteContractor(profileName));
       return `
         <div class="session-bar">
           <div class="session-who">
@@ -3612,12 +3755,45 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <span>${s.role === "user" ? "Нахлебничек <span class=\"cab-heart\">♥</span>" : escapeHtml(roleLabel(s.role))}</span>
           </div>
           <div class="session-actions">
-            ${isAdmin() ? `<button type="button" class="back-btn" id="open-cabinets">Личные кабинеты</button>` : ""}
-            <button type="button" class="back-btn" id="open-trash">Удалённые${trashItems().length ? ` <span class="tab-count">${trashItems().length}</span>` : ""}</button>
-            <button type="button" class="back-btn" id="logout-btn">Выйти</button>
+            <div class="session-menu">
+              <button type="button" class="session-menu-btn" id="session-menu-btn" aria-expanded="false" aria-haspopup="true" aria-controls="session-menu-list">
+                Меню
+                <span class="session-menu-caret" aria-hidden="true">▾</span>
+              </button>
+              <div class="session-menu-list" id="session-menu-list" hidden role="menu">
+                <button type="button" role="menuitem" data-menu="home"${onHome ? ' class="menu-current"' : ""}>Долги</button>
+                ${isAdmin() ? `<button type="button" role="menuitem" data-menu="cabinets">Личные кабинеты</button>` : ""}
+                <button type="button" role="menuitem" data-menu="trash">Удалённые${trashCount ? ` <span class="tab-count">${trashCount}</span>` : ""}</button>
+                ${canDropCard ? `<button type="button" role="menuitem" class="menu-danger" data-delete-contractor="${escapeHtml(profileName)}">Удалить карточку</button>` : ""}
+                <button type="button" role="menuitem" class="menu-danger" data-menu="logout">Выйти</button>
+              </div>
+            </div>
           </div>
         </div>
       `;
+    }
+
+    function bindSessionMenu() {
+      const btn = document.getElementById("session-menu-btn");
+      const list = document.getElementById("session-menu-list");
+      if (!btn || !list) return;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const open = btn.getAttribute("aria-expanded") !== "true";
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        list.hidden = !open;
+      });
+      list.addEventListener("click", (e) => e.stopPropagation());
+      list.querySelectorAll("[data-menu]").forEach((item) => {
+        item.addEventListener("click", () => {
+          const action = item.getAttribute("data-menu");
+          closeSessionMenu();
+          if (action === "home") goHome();
+          else if (action === "cabinets") openCabinetModal();
+          else if (action === "trash") openTrashModal();
+          else if (action === "logout") logout();
+        });
+      });
     }
 
     function recordActionButtons(r) {
@@ -3996,7 +4172,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ${renderSessionBar()}
         <div class="topbar">
           <button class="back-btn" id="back-home">← Назад</button>
-          ${canDeleteContractor(name) ? `<button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>` : ""}
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
         <p class="profile-last-return">${escapeHtml(lastReturnText(lastReturnOf(name), false))}</p>
@@ -4099,9 +4274,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function bindView() {
       document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
-      document.getElementById("logout-btn")?.addEventListener("click", logout);
-      document.getElementById("open-cabinets")?.addEventListener("click", openCabinetModal);
-      document.getElementById("open-trash")?.addEventListener("click", openTrashModal);
+      bindSessionMenu();
       document.getElementById("home-period-mode")?.addEventListener("change", (e) => {
         state.homePeriodMode = e.target.value;
         render();
@@ -4114,11 +4287,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         state.homeYear = e.target.value;
         render();
       });
-      document.getElementById("back-home")?.addEventListener("click", () => {
-        state.view = "home";
-        state.contractor = null;
-        render();
-      });
+      document.getElementById("back-home")?.addEventListener("click", goHome);
       document.getElementById("add-record")?.addEventListener("click", () => {
         if (isPaidTab()) openRecordModal(null, { repay: true });
         else openRecordModal();
@@ -4223,6 +4392,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         btn.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
+          closeSessionMenu();
           askDeleteContractor(btn.getAttribute("data-delete-contractor"));
         });
       });
@@ -4574,7 +4744,15 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function purgeTrashItem(trashId) {
       const store = ensureTrashShape(activeStore());
-      store.deletedItems = (store.deletedItems || []).filter((x) => x.id !== trashId);
+      const item = (store.deletedItems || []).find((x) => x.id === trashId);
+      markPurgedTrash(store, item);
+      const contentKey = trashContentKey(item);
+      const purged = new Set(store.purgedTrashIds || []);
+      store.deletedItems = (store.deletedItems || []).filter((x) => {
+        if (!x || x.id === trashId) return false;
+        if (contentKey && trashContentKey(x) === contentKey) return false;
+        return !isPurgedTrash(purged, x);
+      });
       saveData(db);
     }
 
@@ -5525,6 +5703,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       closeSortAssign();
       closePayEdit();
       closeTrashModal();
+      closeSessionMenu();
       document.getElementById("confirm-overlay").classList.remove("open");
       state.pendingDelete = null;
     }
@@ -5686,6 +5865,13 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     });
     document.addEventListener("focusin", () => setTimeout(syncKeyboardChrome, 50));
     document.addEventListener("focusout", () => setTimeout(syncKeyboardChrome, 180));
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".session-menu")) return;
+      closeSessionMenu();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeSessionMenu();
+    });
     syncKeyboardChrome();
 
     document.querySelectorAll(".overlay").forEach((overlay) => {
