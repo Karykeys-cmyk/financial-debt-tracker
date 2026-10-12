@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="77" />
+  <meta name="app-build" content="78" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=77" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=77" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=77" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=78" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=78" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=78" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -373,6 +373,7 @@
     .session-menu {
       position: relative;
       flex-shrink: 0;
+      z-index: 12;
     }
 
     .session-menu-btn {
@@ -387,6 +388,8 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
       font-weight: 650;
       box-shadow: var(--shadow);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .session-menu-btn[aria-expanded="true"] {
@@ -405,20 +408,19 @@
     }
 
     .session-menu-list {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 6px);
+      position: fixed;
+      display: block;
       min-width: min(248px, 78vw);
-      z-index: 16;
+      z-index: 18;
       background: #121f3a;
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 14px;
-      box-shadow: var(--shadow);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
       padding: 6px;
     }
 
     .session-menu-list[hidden] {
-      display: none;
+      display: none !important;
     }
 
     .session-menu-list button {
@@ -1634,7 +1636,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=77" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=78" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1924,13 +1926,14 @@
   </div>
 
   <div id="keyboard-fill" aria-hidden="true"></div>
+  <div class="session-menu-list" id="session-menu-list" hidden role="menu"></div>
   <div class="toast" id="toast"></div>
 
   <script>
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "77";
+    const APP_BUILD = "78";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -2034,7 +2037,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       homeYear: String(new Date().getFullYear()),
       homeMonth: String(new Date().getMonth() + 1),
       homePeriodMode: "month",
-      cabinetRole: "user"
+      cabinetRole: "user",
+      sessionMenuOpen: false,
+      sessionMenuIgnoreUntil: 0
     };
 
     function readStoredSession() {
@@ -3603,6 +3608,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (state.paymentFilter === "На счёт юрлица") state.paymentFilter = "Безналичный расчёт";
       const root = document.getElementById("app");
       if (!sessionUser()) {
+        closeSessionMenu();
         root.innerHTML = renderLogin();
         bindLogin();
         syncBrandBarOffset();
@@ -3727,7 +3733,57 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       render();
     }
 
+    function sessionMenuItemsHtml() {
+      const trashCount = trashItems().length;
+      const onHome = state.view === "home";
+      const profileName = state.view === "profile" ? state.contractor : "";
+      const canDropCard = Boolean(profileName && canDeleteContractor(profileName));
+      return `
+        <button type="button" role="menuitem" data-menu="home"${onHome ? ' class="menu-current"' : ""}>Долги</button>
+        ${isAdmin() ? `<button type="button" role="menuitem" data-menu="cabinets">Личные кабинеты</button>` : ""}
+        <button type="button" role="menuitem" data-menu="trash">Удалённые${trashCount ? ` <span class="tab-count">${trashCount}</span>` : ""}</button>
+        ${canDropCard ? `<button type="button" role="menuitem" class="menu-danger" data-delete-contractor="${escapeHtml(profileName)}">Удалить карточку</button>` : ""}
+        <button type="button" role="menuitem" class="menu-danger" data-menu="logout">Выйти</button>
+      `;
+    }
+
+    function placeSessionMenu() {
+      const btn = document.getElementById("session-menu-btn");
+      const list = document.getElementById("session-menu-list");
+      if (!btn || !list || list.hidden) return;
+      const r = btn.getBoundingClientRect();
+      const gap = 6;
+      const width = Math.min(248, Math.max(196, Math.round(window.innerWidth * 0.72)));
+      let left = r.right - width;
+      if (left < 8) left = 8;
+      if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+      list.style.position = "fixed";
+      list.style.zIndex = "18";
+      list.style.minWidth = width + "px";
+      list.style.left = left + "px";
+      list.style.right = "auto";
+      list.style.top = (r.bottom + gap) + "px";
+      const box = list.getBoundingClientRect();
+      if (box.bottom > window.innerHeight - 8) {
+        const up = r.top - gap - box.height;
+        if (up > 8) list.style.top = up + "px";
+      }
+    }
+
+    function openSessionMenu() {
+      const btn = document.getElementById("session-menu-btn");
+      const list = document.getElementById("session-menu-list");
+      if (!btn || !list) return;
+      state.sessionMenuOpen = true;
+      state.sessionMenuIgnoreUntil = Date.now() + 500;
+      btn.setAttribute("aria-expanded", "true");
+      list.hidden = false;
+      placeSessionMenu();
+      requestAnimationFrame(placeSessionMenu);
+    }
+
     function closeSessionMenu() {
+      state.sessionMenuOpen = false;
       const btn = document.getElementById("session-menu-btn");
       const list = document.getElementById("session-menu-list");
       if (btn) btn.setAttribute("aria-expanded", "false");
@@ -3744,10 +3800,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function renderSessionBar() {
       const s = sessionUser();
       if (!s) return "";
-      const trashCount = trashItems().length;
-      const onHome = state.view === "home";
-      const profileName = state.view === "profile" ? state.contractor : "";
-      const canDropCard = Boolean(profileName && canDeleteContractor(profileName));
       return `
         <div class="session-bar">
           <div class="session-who">
@@ -3760,13 +3812,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
                 Меню
                 <span class="session-menu-caret" aria-hidden="true">▾</span>
               </button>
-              <div class="session-menu-list" id="session-menu-list" hidden role="menu">
-                <button type="button" role="menuitem" data-menu="home"${onHome ? ' class="menu-current"' : ""}>Долги</button>
-                ${isAdmin() ? `<button type="button" role="menuitem" data-menu="cabinets">Личные кабинеты</button>` : ""}
-                <button type="button" role="menuitem" data-menu="trash">Удалённые${trashCount ? ` <span class="tab-count">${trashCount}</span>` : ""}</button>
-                ${canDropCard ? `<button type="button" role="menuitem" class="menu-danger" data-delete-contractor="${escapeHtml(profileName)}">Удалить карточку</button>` : ""}
-                <button type="button" role="menuitem" class="menu-danger" data-menu="logout">Выйти</button>
-              </div>
             </div>
           </div>
         </div>
@@ -3776,16 +3821,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function bindSessionMenu() {
       const btn = document.getElementById("session-menu-btn");
       const list = document.getElementById("session-menu-list");
-      if (!btn || !list) return;
+      if (!list) return;
+      if (!btn) {
+        closeSessionMenu();
+        return;
+      }
+      list.innerHTML = sessionMenuItemsHtml();
       btn.addEventListener("click", (e) => {
+        e.preventDefault();
         e.stopPropagation();
-        const open = btn.getAttribute("aria-expanded") !== "true";
-        btn.setAttribute("aria-expanded", open ? "true" : "false");
-        list.hidden = !open;
+        if (btn.getAttribute("aria-expanded") === "true") closeSessionMenu();
+        else openSessionMenu();
       });
-      list.addEventListener("click", (e) => e.stopPropagation());
       list.querySelectorAll("[data-menu]").forEach((item) => {
-        item.addEventListener("click", () => {
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
           const action = item.getAttribute("data-menu");
           closeSessionMenu();
           if (action === "home") goHome();
@@ -3794,6 +3844,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           else if (action === "logout") logout();
         });
       });
+      if (state.sessionMenuOpen) openSessionMenu();
     }
 
     function recordActionButtons(r) {
@@ -5865,13 +5916,21 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     });
     document.addEventListener("focusin", () => setTimeout(syncKeyboardChrome, 50));
     document.addEventListener("focusout", () => setTimeout(syncKeyboardChrome, 180));
-    document.addEventListener("click", (e) => {
-      if (e.target.closest(".session-menu")) return;
+    document.addEventListener("pointerdown", (e) => {
+      if (!state.sessionMenuOpen) return;
+      if (Date.now() < (state.sessionMenuIgnoreUntil || 0)) return;
+      if (e.target.closest("#session-menu-btn, #session-menu-list")) return;
       closeSessionMenu();
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeSessionMenu();
     });
+    window.addEventListener("scroll", placeSessionMenu, true);
+    window.addEventListener("resize", placeSessionMenu);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", placeSessionMenu);
+      window.visualViewport.addEventListener("scroll", placeSessionMenu);
+    }
     syncKeyboardChrome();
 
     document.querySelectorAll(".overlay").forEach((overlay) => {
