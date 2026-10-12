@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="75" />
+  <meta name="app-build" content="76" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=75" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=75" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=75" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=76" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=76" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=76" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -914,6 +914,40 @@
       color: #f0c27a;
     }
 
+    .last-return {
+      margin: 0 0 16px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: var(--card);
+      border: 1px solid rgba(94, 233, 163, 0.28);
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .last-return strong {
+      color: var(--saldo-plus);
+      font-weight: 700;
+    }
+
+    .last-return.empty-return {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .card-last-return,
+    .profile-last-return {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .profile-last-return {
+      margin: -8px 0 18px;
+      font-size: 0.92rem;
+    }
+
     .table-panel {
       background: var(--card);
       border-radius: 16px;
@@ -1508,6 +1542,7 @@
       .home-totals .summary-card .value { font-size: 1.05rem; }
       .session-bar { margin-bottom: 10px; }
       .contractor-card { padding: 18px 14px 20px; }
+      .last-return { margin-bottom: 12px; padding: 10px 12px; font-size: 0.85rem; }
     }
   </style>
 </head>
@@ -1515,7 +1550,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=75" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=76" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1811,7 +1846,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "75";
+    const APP_BUILD = "76";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -2125,10 +2160,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!pays.length) return "";
       if (pays.length === 1) {
         const p = pays[0];
-        return "Выплата " + formatDate(p.date) + " · " + formatMoney(p.amount) + (p.paymentMethod ? " · " + p.paymentMethod : "");
+        return "Выплата " + formatDateTime(paymentRecordedAt(p) || p.date) + " · " + formatMoney(p.amount) + (p.paymentMethod ? " · " + p.paymentMethod : "");
       }
-      const last = pays[pays.length - 1];
-      return pays.length + " выплаты · " + formatMoney(paymentSum(record)) + " · последняя " + formatDate(last.date);
+      const last = pays.slice().sort((a, b) => paymentRecordedAt(b).localeCompare(paymentRecordedAt(a)))[0] || pays[pays.length - 1];
+      return pays.length + " выплаты · " + formatMoney(paymentSum(record)) + " · последняя " + formatDateTime(paymentRecordedAt(last) || last.date);
     }
 
     function paidVersusDebt(record) {
@@ -2242,7 +2277,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         date: record.date || record.issueDate || todayIso(),
         amount: Number(record.amount) || 0,
         paymentMethod: normalizePaymentMethod(record.paymentMethod),
-        comment: record.comment || ""
+        comment: record.comment || "",
+        recordedAt: record.recordedAt || ""
       };
     }
 
@@ -2258,12 +2294,14 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function normalizePayment(p) {
       if (!p || !p.id) return null;
+      const recordedAt = String(p.recordedAt || "").trim();
       return {
         id: p.id,
         date: p.date || todayIso(),
         amount: Number(p.amount) || 0,
         paymentMethod: normalizePaymentMethod(p.paymentMethod),
-        comment: p.comment || ""
+        comment: p.comment || "",
+        recordedAt: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(recordedAt) ? recordedAt : (p.recordedAt || "")
       };
     }
 
@@ -2891,9 +2929,83 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     function formatDate(iso) {
       if (!iso) return "—";
-      const [y, m, d] = iso.split("-");
+      const day = String(iso).slice(0, 10);
+      const [y, m, d] = day.split("-");
       if (!y || !m || !d) return iso;
       return d + "." + m + "." + y;
+    }
+
+    function nowRecordedAt() {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+    }
+
+    function paymentRecordedAt(p) {
+      if (!p) return "";
+      const stamped = String(p.recordedAt || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(stamped)) return stamped;
+      const date = String(p.date || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(date)) return date;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date + "T00:00:00";
+      return "";
+    }
+
+    function formatDateTime(iso) {
+      const raw = String(iso || "").trim();
+      if (!raw) return "—";
+      const m = raw.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}))?/);
+      if (!m) return formatDate(raw);
+      const time = m[2] && m[3] ? m[2] + ":" + m[3] : "";
+      if (!time || time === "00:00") return formatDate(m[1]);
+      return formatDate(m[1]) + " в " + time;
+    }
+
+    function paymentStamp(p, fallback) {
+      const at = (p && p.recordedAt) || fallback || nowRecordedAt();
+      return at;
+    }
+
+    function allReturnsOf(name) {
+      const contractor = contractorsMap()[name];
+      const items = [];
+      (contractor?.records || []).forEach((r) => {
+        (r.payments || []).forEach((p) => {
+          if (p && p.id) items.push({ ...p, contractor: name });
+        });
+      });
+      (contractor?.unsortedPayments || []).forEach((p) => {
+        if (p && p.id) items.push({ ...p, contractor: name, unsorted: true });
+      });
+      return items;
+    }
+
+    function lastReturnOf(name) {
+      const items = allReturnsOf(name);
+      if (!items.length) return null;
+      items.sort((a, b) => {
+        const cmp = paymentRecordedAt(b).localeCompare(paymentRecordedAt(a));
+        if (cmp) return cmp;
+        return String(b.id || "").localeCompare(String(a.id || ""));
+      });
+      return items[0];
+    }
+
+    function lastReturnGlobal() {
+      let best = null;
+      contractorNames().forEach((name) => {
+        const last = lastReturnOf(name);
+        if (!last) return;
+        if (!best || paymentRecordedAt(last).localeCompare(paymentRecordedAt(best)) > 0) best = last;
+      });
+      return best;
+    }
+
+    function lastReturnText(p, withName) {
+      if (!p) return "Возвратов денег пока не было";
+      const when = formatDateTime(paymentRecordedAt(p) || p.date);
+      const who = withName && p.contractor ? " · " + p.contractor : "";
+      return "Последний возврат " + when + who + " · " + formatMoney(p.amount);
     }
 
     function daysBetween(from, to) {
@@ -3601,6 +3713,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               ${owedStats}
             </div>
             ${splitHtml}
+            <div class="card-last-return">${escapeHtml(lastReturnText(lastReturnOf(name), false))}</div>
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
             ${sortCount ? `<div class="card-sort-mark">Требует сортировки: ${sortCount}</div>` : ""}
           </button>
@@ -3649,6 +3762,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="value loss">${formatMoney(analytics.loss)}</div>
           </div>
         </div>
+        ${(() => {
+          const last = lastReturnGlobal();
+          return `<div class="last-return ${last ? "" : "empty-return"}">${last ? ("Последний возврат денег: <strong>" + escapeHtml(formatDateTime(paymentRecordedAt(last) || last.date)) + "</strong> · " + escapeHtml(last.contractor) + " · " + escapeHtml(formatMoney(last.amount))) : escapeHtml(lastReturnText(null))}</div>`;
+        })()}
         <div class="contractors">
           ${cards}
           ${canEditBook() ? `
@@ -3831,7 +3948,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         } else {
           const sortRows = items.map((p) => `
             <tr>
-              <td>${formatDate(p.date)}</td>
+              <td>${formatDateTime(paymentRecordedAt(p) || p.date)}</td>
               <td>${formatMoney(p.amount)}</td>
               <td>${escapeHtml(p.paymentMethod || "—")}</td>
               <td class="wrap muted">${escapeHtml(p.comment || "—")}</td>
@@ -3842,7 +3959,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           `).join("");
           const sortCards = items.map((p) => `
             <div class="record-card">
-              <div class="row"><strong>${formatDate(p.date)}</strong><span class="remain-open">${formatMoney(p.amount)}</span></div>
+              <div class="row"><strong>${formatDateTime(paymentRecordedAt(p) || p.date)}</strong><span class="remain-open">${formatMoney(p.amount)}</span></div>
               <div class="row muted"><span>${escapeHtml(p.paymentMethod || "—")}</span><span>${escapeHtml(p.comment || "—")}</span></div>
               <div class="row muted">
                 <span></span>
@@ -3882,6 +3999,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           ${canDeleteContractor(name) ? `<button type="button" class="back-btn" id="delete-contractor" data-delete-contractor="${escapeHtml(name)}">Удалить карточку</button>` : ""}
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
+        <p class="profile-last-return">${escapeHtml(lastReturnText(lastReturnOf(name), false))}</p>
         ${hasOverdueDebt(name) ? `<p class="overdue-mark" style="text-align:center;margin:-12px 0 18px;">Просрочен возврат долга</p>` : ""}
         <div class="analytics">
           <div class="analytics-head">
@@ -4198,7 +4316,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       list.innerHTML = payments.length ? payments.map((p) => `
         <div class="payment-item">
           <div>
-            <div>${formatDate(p.date)} · ${formatMoney(p.amount)}</div>
+            <div>${formatDateTime(paymentRecordedAt(p) || p.date)} · ${formatMoney(p.amount)}</div>
             <div class="meta">${escapeHtml(p.paymentMethod || "—")}${p.comment ? " · " + escapeHtml(p.comment) : ""}</div>
           </div>
           <button type="button" class="icon-btn" data-edit-pay="${escapeHtml(p.id)}" title="Изменить выплату" aria-label="Изменить выплату">✏️</button>
@@ -4230,13 +4348,15 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (options && options.removeUnsortedId) {
         contractor.unsortedPayments = contractor.unsortedPayments.filter((p) => p.id !== options.removeUnsortedId);
       }
+      const recordedAt = paymentStamp(payment);
       if (applied > 0.009) {
         rec.payments.push({
           id: payment.id || uid(),
           date: payment.date,
           amount: applied,
           paymentMethod: payment.paymentMethod || "",
-          comment: payment.comment || ""
+          comment: payment.comment || "",
+          recordedAt
         });
       }
       if (leftover > 0.009) {
@@ -4245,7 +4365,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           date: payment.date,
           amount: leftover,
           paymentMethod: payment.paymentMethod || "",
-          comment: payment.comment || ""
+          comment: payment.comment || "",
+          recordedAt
         });
       }
       saveData(db);
@@ -4981,7 +5102,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             date,
             amount: rounded,
             paymentMethod,
-            comment
+            comment,
+            recordedAt: found.pay.recordedAt || nowRecordedAt()
           });
         } else {
           found.pay.amount = applied;
@@ -4993,7 +5115,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               date,
               amount: leftover,
               paymentMethod,
-              comment
+              comment,
+              recordedAt: nowRecordedAt()
             });
           }
         }
