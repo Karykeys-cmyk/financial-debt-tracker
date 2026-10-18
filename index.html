@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="79" />
+  <meta name="app-build" content="80" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=79" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=79" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=79" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=80" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=80" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=80" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -613,6 +613,59 @@
       font-weight: 650;
     }
 
+    .name-payment-cue {
+      width: 100%;
+      margin: 2px 0 4px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(74, 158, 255, 0.1);
+      border: 1px solid rgba(74, 158, 255, 0.22);
+      text-align: left;
+    }
+
+    .name-payment-cue.empty {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .name-payment-cue .cue-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .name-payment-cue .cue-main {
+      font-size: 0.95rem;
+      font-weight: 750;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .name-payment-cue .cue-comment {
+      margin-top: 4px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .name-payment-cue .cue-hint {
+      margin-top: 5px;
+      font-size: 0.75rem;
+      color: var(--accent);
+    }
+
+    .profile-page-cue {
+      max-width: 560px;
+      margin: 0 auto 18px;
+    }
+
     .contractor-card .meta {
       font-size: 0.85rem;
       color: var(--text-secondary);
@@ -871,7 +924,7 @@
       text-align: center;
       font-size: clamp(1.8rem, 4vw, 2.3rem);
       font-weight: 750;
-      margin: 8px 0 24px;
+      margin: 8px 0 10px;
       letter-spacing: -0.03em;
     }
 
@@ -1027,11 +1080,6 @@
       font-weight: 600;
       color: var(--text-secondary);
       text-align: center;
-    }
-
-    .profile-last-return {
-      margin: -8px 0 18px;
-      font-size: 0.92rem;
     }
 
     .table-panel {
@@ -1636,7 +1684,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=79" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=80" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1933,7 +1981,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "79";
+    const APP_BUILD = "80";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3135,7 +3183,43 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!p) return "Возвратов денег пока не было";
       const when = formatDateTime(paymentRecordedAt(p) || p.date);
       const who = withName && p.contractor ? " · " + p.contractor : "";
-      return "Последний возврат " + when + who + " · " + formatMoney(p.amount);
+      const comment = String(p.comment || "").trim();
+      return "Последний возврат " + when + who + " · " + formatMoney(p.amount) + (comment ? " · " + comment : "");
+    }
+
+    function paymentDay(p) {
+      const d = String(p?.date || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
+      const rec = paymentRecordedAt(p);
+      if (/^\d{4}-\d{2}-\d{2}/.test(rec)) return rec.slice(0, 10);
+      return "";
+    }
+
+    function lastPaymentOf(name) {
+      const items = allReturnsOf(name);
+      if (!items.length) return null;
+      items.sort((a, b) => {
+        const byDay = paymentDay(b).localeCompare(paymentDay(a));
+        if (byDay) return byDay;
+        const byRec = paymentRecordedAt(b).localeCompare(paymentRecordedAt(a));
+        if (byRec) return byRec;
+        return String(b.id || "").localeCompare(String(a.id || ""));
+      });
+      return items[0];
+    }
+
+    function lastPaymentCueHtml(name) {
+      const p = lastPaymentOf(name);
+      if (!p) {
+        return `<div class="name-payment-cue empty">Платежей пока нет — вносите с первой даты</div>`;
+      }
+      const extra = [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
+      return `<div class="name-payment-cue">
+        <div class="cue-label">Последний платёж</div>
+        <div class="cue-main">${escapeHtml(formatDate(paymentDay(p)))} · ${escapeHtml(formatMoney(p.amount))}</div>
+        ${extra ? `<div class="cue-comment">${escapeHtml(extra)}</div>` : ""}
+        <div class="cue-hint">Дальше вносите с этой даты</div>
+      </div>`;
     }
 
     function daysBetween(from, to) {
@@ -3939,12 +4023,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <button class="contractor-card ${overdue ? "overdue" : ""} ${linked ? "owner-card" : ""}" data-open="${escapeHtml(name)}">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
+            ${lastPaymentCueHtml(name)}
             <div class="meta">${escapeHtml(meta)}</div>
             <div class="card-stats">
               ${owedStats}
             </div>
             ${splitHtml}
-            <div class="card-last-return">${escapeHtml(lastReturnText(lastReturnOf(name), false))}</div>
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
             ${sortCount ? `<div class="card-sort-mark">Требует сортировки: ${sortCount}</div>` : ""}
           </button>
@@ -3995,7 +4079,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </div>
         ${(() => {
           const last = lastReturnGlobal();
-          return `<div class="last-return ${last ? "" : "empty-return"}">${last ? ("Последний возврат денег: <strong>" + escapeHtml(formatDateTime(paymentRecordedAt(last) || last.date)) + "</strong> · " + escapeHtml(last.contractor) + " · " + escapeHtml(formatMoney(last.amount))) : escapeHtml(lastReturnText(null))}</div>`;
+          const lastComment = last ? String(last.comment || "").trim() : "";
+          return `<div class="last-return ${last ? "" : "empty-return"}">${last ? ("Последний возврат денег: <strong>" + escapeHtml(formatDateTime(paymentRecordedAt(last) || last.date)) + "</strong> · " + escapeHtml(last.contractor) + " · " + escapeHtml(formatMoney(last.amount)) + (lastComment ? " · " + escapeHtml(lastComment) : "")) : escapeHtml(lastReturnText(null))}</div>`;
         })()}
         <div class="contractors">
           ${cards}
@@ -4229,7 +4314,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <button class="back-btn" id="back-home">← Назад</button>
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
-        <p class="profile-last-return">${escapeHtml(lastReturnText(lastReturnOf(name), false))}</p>
+        <div class="profile-page-cue">${lastPaymentCueHtml(name)}</div>
         ${hasOverdueDebt(name) ? `<p class="overdue-mark" style="text-align:center;margin:-12px 0 18px;">Просрочен возврат долга</p>` : ""}
         <div class="analytics">
           <div class="analytics-head">
