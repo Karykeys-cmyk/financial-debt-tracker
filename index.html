@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="80" />
+  <meta name="app-build" content="81" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=80" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=80" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=80" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=81" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=81" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=81" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -580,6 +580,11 @@
       gap: 16px;
     }
 
+    .contractor-card {
+      cursor: pointer;
+      text-align: center;
+    }
+
     .contractor-card,
     .add-contractor {
       min-height: 180px;
@@ -660,6 +665,40 @@
       font-size: 0.75rem;
       color: var(--accent);
     }
+
+    button.name-payment-cue {
+      appearance: none;
+      font: inherit;
+      color: inherit;
+    }
+
+    .name-payment-cue.is-link:hover {
+      border-color: rgba(74, 158, 255, 0.55);
+      background: rgba(74, 158, 255, 0.16);
+    }
+
+    .ledger-lead {
+      text-align: center;
+      color: var(--text-secondary);
+      margin: -4px 0 16px;
+    }
+
+    .ledger-kind.tabs {
+      margin-bottom: 14px;
+    }
+
+    .ledger-amount-plus { color: var(--debit); font-weight: 700; }
+    .ledger-amount-minus { color: var(--saldo-plus); font-weight: 700; }
+    .ledger-kind-tag {
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .ledger-kind-tag.accrual { color: var(--debit); }
+    .ledger-kind-tag.writeoff { color: var(--saldo-plus); }
+    .ledger-row { cursor: pointer; }
+    .ledger-row:hover { background: rgba(255, 255, 255, 0.04); }
 
     .profile-page-cue {
       max-width: 560px;
@@ -1684,7 +1723,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=80" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=81" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -1981,7 +2020,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "80";
+    const APP_BUILD = "81";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -2087,7 +2126,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       homePeriodMode: "month",
       cabinetRole: "user",
       sessionMenuOpen: false,
-      sessionMenuIgnoreUntil: 0
+      sessionMenuIgnoreUntil: 0,
+      ledgerContractor: "all",
+      ledgerYear: "all",
+      ledgerMonth: "all",
+      ledgerKind: "all"
     };
 
     function readStoredSession() {
@@ -3149,7 +3192,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const items = [];
       (contractor?.records || []).forEach((r) => {
         (r.payments || []).forEach((p) => {
-          if (p && p.id) items.push({ ...p, contractor: name });
+          if (p && p.id) items.push({ ...p, contractor: name, debtId: r.id });
         });
       });
       (contractor?.unsortedPayments || []).forEach((p) => {
@@ -3214,12 +3257,48 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         return `<div class="name-payment-cue empty">Платежей пока нет — вносите с первой даты</div>`;
       }
       const extra = [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
-      return `<div class="name-payment-cue">
+      const openAttrs = p.debtId
+        ? `data-open-debt="${escapeHtml(name)}" data-record="${escapeHtml(p.debtId)}"`
+        : `data-open-sort="${escapeHtml(name)}"`;
+      return `<button type="button" class="name-payment-cue is-link" ${openAttrs}>
         <div class="cue-label">Последний платёж</div>
         <div class="cue-main">${escapeHtml(formatDate(paymentDay(p)))} · ${escapeHtml(formatMoney(p.amount))}</div>
         ${extra ? `<div class="cue-comment">${escapeHtml(extra)}</div>` : ""}
-        <div class="cue-hint">Дальше вносите с этой даты</div>
-      </div>`;
+        <div class="cue-hint">${p.debtId ? "Нажмите, чтобы открыть долг" : "Нажмите — выплата в сортировке"}</div>
+      </button>`;
+    }
+
+    function lastDebtOf(name) {
+      const recs = debtRecords(name).slice();
+      if (!recs.length) return null;
+      const loans = recs.filter((r) => r.category === "Деньги в долг");
+      const pool = loans.length ? loans : recs;
+      pool.sort((a, b) => {
+        const da = String(a.issueDate || a.date || "");
+        const db = String(b.issueDate || b.date || "");
+        if (da !== db) return db.localeCompare(da);
+        return String(b.id || "").localeCompare(String(a.id || ""));
+      });
+      return pool[0];
+    }
+
+    function lastDebtCueHtml(name) {
+      const rec = lastDebtOf(name);
+      if (!rec) {
+        return `<div class="name-payment-cue empty">Долгов пока нет</div>`;
+      }
+      const extra = [rec.category, rec.subCategory, rec.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
+      const day = String(rec.issueDate || rec.date || "").slice(0, 10);
+      return `<button type="button" class="name-payment-cue is-link" data-open-debt="${escapeHtml(name)}" data-record="${escapeHtml(rec.id)}">
+        <div class="cue-label">Последний долг</div>
+        <div class="cue-main">${escapeHtml(day ? formatDate(day) : "—")} · ${escapeHtml(formatMoney(recordDue(rec)))}</div>
+        ${extra ? `<div class="cue-comment">${escapeHtml(extra)}</div>` : ""}
+        <div class="cue-hint">Нажмите, чтобы открыть долг</div>
+      </button>`;
+    }
+
+    function nameCuesHtml(name) {
+      return lastDebtCueHtml(name) + lastPaymentCueHtml(name);
     }
 
     function daysBetween(from, to) {
@@ -3704,6 +3783,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       }
       if (state.view === "home") {
         root.innerHTML = renderHome();
+      } else if (state.view === "ledger") {
+        root.innerHTML = renderLedger();
       } else {
         root.innerHTML = renderProfile();
       }
@@ -3824,10 +3905,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function sessionMenuItemsHtml() {
       const trashCount = trashItems().length;
       const onHome = state.view === "home";
+      const onLedger = state.view === "ledger";
       const profileName = state.view === "profile" ? state.contractor : "";
       const canDropCard = Boolean(profileName && canDeleteContractor(profileName));
       return `
         <button type="button" role="menuitem" data-menu="home"${onHome ? ' class="menu-current"' : ""}>Долги</button>
+        <button type="button" role="menuitem" data-menu="ledger"${onLedger ? ' class="menu-current"' : ""}>История</button>
         ${isAdmin() ? `<button type="button" role="menuitem" data-menu="cabinets">Личные кабинеты</button>` : ""}
         <button type="button" role="menuitem" data-menu="trash">Удалённые${trashCount ? ` <span class="tab-count">${trashCount}</span>` : ""}</button>
         ${canDropCard ? `<button type="button" role="menuitem" class="menu-danger" data-delete-contractor="${escapeHtml(profileName)}">Удалить карточку</button>` : ""}
@@ -3885,6 +3968,66 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       render();
     }
 
+    function openLedger() {
+      state.view = "ledger";
+      closeSessionMenu();
+      render();
+    }
+
+    function applyRecordContext(name, rec) {
+      const cfg = contractorConfig(name);
+      state.view = "profile";
+      state.contractor = name;
+      state.paymentFilter = "Все";
+      state.recordSearch = "";
+      state.recordsCollapsed = false;
+      state.periodMode = "all";
+      state.periodYear = String(new Date().getFullYear());
+      state.periodMonth = String(new Date().getMonth() + 1);
+      if (!rec) {
+        state.tab = cfg.hasRental ? "rental" : "debt";
+        state.workTab = state.tab;
+        return;
+      }
+      if (isFullyPaid(rec)) {
+        if (rec.category === "Аренда помещения") {
+          state.workTab = "rental";
+          if (RENTAL_SUBS.includes(rec.subCategory)) state.subTab = rec.subCategory;
+        } else if (rec.category === "Аренда ДТФ") {
+          state.workTab = "dtf";
+        } else if (rec.category === "Счета") {
+          state.workTab = "invoices";
+        } else {
+          state.workTab = "debt";
+        }
+        state.tab = "paid";
+        return;
+      }
+      showReopenedDebt(rec);
+    }
+
+    function openDebtForContractor(name, recordId) {
+      if (!name) return;
+      const rec = (contractorsMap()[name]?.records || []).find((r) => r && r.id === recordId);
+      applyRecordContext(name, rec || null);
+      render();
+      if (rec) openRecordModal(rec.id);
+      else showToast("Долг не найден");
+    }
+
+    function openUnsortedForContractor(name) {
+      if (!name) return;
+      state.view = "profile";
+      state.contractor = name;
+      state.tab = "sort";
+      state.workTab = "debt";
+      state.paymentFilter = "Все";
+      state.recordSearch = "";
+      state.recordsCollapsed = false;
+      state.periodMode = "all";
+      render();
+    }
+
     function renderSessionBar() {
       const s = sessionUser();
       if (!s) return "";
@@ -3927,6 +4070,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           const action = item.getAttribute("data-menu");
           closeSessionMenu();
           if (action === "home") goHome();
+          else if (action === "ledger") openLedger();
           else if (action === "cabinets") openCabinetModal();
           else if (action === "trash") openTrashModal();
           else if (action === "logout") logout();
@@ -4020,10 +4164,10 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         `;
         return `
           <div class="contractor-card-wrap">
-          <button class="contractor-card ${overdue ? "overdue" : ""} ${linked ? "owner-card" : ""}" data-open="${escapeHtml(name)}">
+          <div class="contractor-card ${overdue ? "overdue" : ""} ${linked ? "owner-card" : ""}" data-open="${escapeHtml(name)}" role="button" tabindex="0">
             <div class="icon">👤</div>
             <div class="name">${escapeHtml(name)}</div>
-            ${lastPaymentCueHtml(name)}
+            ${nameCuesHtml(name)}
             <div class="meta">${escapeHtml(meta)}</div>
             <div class="card-stats">
               ${owedStats}
@@ -4031,7 +4175,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ${splitHtml}
             ${overdue ? `<div class="overdue-mark">Просрочен возврат долга</div>` : ""}
             ${sortCount ? `<div class="card-sort-mark">Требует сортировки: ${sortCount}</div>` : ""}
-          </button>
+          </div>
           ${canDeleteContractor(name) ? `<button type="button" class="card-delete" data-delete-contractor="${escapeHtml(name)}" title="Удалить карточку" aria-label="Удалить карточку">✕</button>` : ""}
           </div>
         `;
@@ -4314,7 +4458,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <button class="back-btn" id="back-home">← Назад</button>
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
-        <div class="profile-page-cue">${lastPaymentCueHtml(name)}</div>
+        <div class="profile-page-cue">${nameCuesHtml(name)}</div>
         ${hasOverdueDebt(name) ? `<p class="overdue-mark" style="text-align:center;margin:-12px 0 18px;">Просрочен возврат долга</p>` : ""}
         <div class="analytics">
           <div class="analytics-head">
@@ -4412,6 +4556,174 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       `;
     }
 
+    function collectLedgerEntries() {
+      const entries = [];
+      contractorNames().forEach((name) => {
+        const contractor = contractorsMap()[name];
+        (contractor?.records || []).forEach((r) => {
+          if (!r || r.type === "Кредит") return;
+          const day = String(r.issueDate || r.date || "").slice(0, 10);
+          entries.push({
+            kind: "accrual",
+            id: "a:" + r.id,
+            date: day,
+            contractor: name,
+            amount: recordDue(r),
+            title: (isBorrowed(r) ? "Наш долг" : (r.category || "Долг")) + (r.subCategory ? " · " + r.subCategory : ""),
+            comment: r.comment || "",
+            recordId: r.id
+          });
+          (r.payments || []).forEach((p) => {
+            if (!p || !p.id) return;
+            entries.push({
+              kind: "writeoff",
+              id: "w:" + p.id,
+              date: paymentDay(p),
+              contractor: name,
+              amount: Number(p.amount) || 0,
+              title: "Списание по долгу",
+              comment: [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · "),
+              recordId: r.id
+            });
+          });
+        });
+        (contractor?.unsortedPayments || []).forEach((p) => {
+          if (!p || !p.id) return;
+          entries.push({
+            kind: "writeoff",
+            id: "u:" + p.id,
+            date: paymentDay(p),
+            contractor: name,
+            amount: Number(p.amount) || 0,
+            title: "Списание без долга",
+            comment: [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · "),
+            unsorted: true
+          });
+        });
+      });
+      return entries.sort((a, b) => {
+        const byDate = String(b.date || "").localeCompare(String(a.date || ""));
+        if (byDate) return byDate;
+        return String(b.id || "").localeCompare(String(a.id || ""));
+      });
+    }
+
+    function filteredLedgerEntries() {
+      const who = state.ledgerContractor || "all";
+      const year = String(state.ledgerYear || "all");
+      const month = String(state.ledgerMonth || "all");
+      const kind = state.ledgerKind || "all";
+      const monthPad = month === "all" ? "" : String(month).padStart(2, "0");
+      return collectLedgerEntries().filter((e) => {
+        if (who !== "all" && e.contractor !== who) return false;
+        if (kind !== "all" && e.kind !== kind) return false;
+        if (year !== "all" && String(e.date || "").slice(0, 4) !== year) return false;
+        if (monthPad && String(e.date || "").slice(5, 7) !== monthPad) return false;
+        return true;
+      });
+    }
+
+    function renderLedger() {
+      const rows = filteredLedgerEntries();
+      const names = contractorNames();
+      const years = (() => {
+        const set = new Set(allPeriodYears());
+        collectLedgerEntries().forEach((e) => {
+          const y = Number(String(e.date || "").slice(0, 4));
+          if (y) set.add(y);
+        });
+        return [...set].sort((a, b) => b - a);
+      })();
+      const kind = state.ledgerKind || "all";
+      let accrued = 0;
+      let written = 0;
+      rows.forEach((e) => {
+        if (e.kind === "accrual") accrued += e.amount;
+        else written += e.amount;
+      });
+      const tableRows = rows.map((e) => `
+        <tr class="ledger-row" ${e.recordId ? `data-open-debt="${escapeHtml(e.contractor)}" data-record="${escapeHtml(e.recordId)}"` : `data-open-sort="${escapeHtml(e.contractor)}"`}>
+          <td>${e.date ? formatDate(e.date) : "—"}</td>
+          <td>${escapeHtml(e.contractor)}</td>
+          <td><span class="ledger-kind-tag ${e.kind}">${e.kind === "accrual" ? "Начисление" : "Списание"}</span></td>
+          <td>${escapeHtml(e.title)}</td>
+          <td class="${e.kind === "accrual" ? "ledger-amount-plus" : "ledger-amount-minus"}">${e.kind === "writeoff" ? "− " : ""}${formatMoney(e.amount)}</td>
+          <td class="wrap muted">${escapeHtml(e.comment || "—")}</td>
+        </tr>
+      `).join("");
+      const cards = rows.map((e) => `
+        <div class="record-card ledger-row" ${e.recordId ? `data-open-debt="${escapeHtml(e.contractor)}" data-record="${escapeHtml(e.recordId)}"` : `data-open-sort="${escapeHtml(e.contractor)}"`}>
+          <div class="row"><strong>${e.date ? formatDate(e.date) : "—"}</strong><span class="ledger-kind-tag ${e.kind}">${e.kind === "accrual" ? "Начисление" : "Списание"}</span></div>
+          <div class="row"><span>${escapeHtml(e.contractor)}</span><strong class="${e.kind === "accrual" ? "ledger-amount-plus" : "ledger-amount-minus"}">${e.kind === "writeoff" ? "− " : ""}${formatMoney(e.amount)}</strong></div>
+          <div class="row muted"><span>${escapeHtml(e.title)}</span></div>
+          ${e.comment ? `<div class="row muted"><span>${escapeHtml(e.comment)}</span></div>` : ""}
+        </div>
+      `).join("");
+      const body = rows.length ? `
+        <div class="table-scroll desktop-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Контрагент</th>
+                <th>Тип</th>
+                <th>Описание</th>
+                <th>Сумма</th>
+                <th>Комментарий</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+        <div class="mobile-list">${cards}</div>
+      ` : `<div class="empty">Нет начислений и списаний по фильтру</div>`;
+      return `
+        ${renderSessionBar()}
+        <div class="topbar">
+          <button class="back-btn" id="back-home">← Назад</button>
+        </div>
+        <div class="profile-name">История</div>
+        <p class="ledger-lead">Начисления и списания. Нажмите строку, чтобы открыть долг.</p>
+        <div class="analytics">
+          <div class="analytics-head">
+            <span class="title">Фильтр</span>
+            <select id="ledger-contractor">
+              <option value="all" ${state.ledgerContractor === "all" ? "selected" : ""}>Все контрагенты</option>
+              ${names.map((n) => `<option value="${escapeHtml(n)}" ${state.ledgerContractor === n ? "selected" : ""}>${escapeHtml(n)}</option>`).join("")}
+            </select>
+            <select id="ledger-year">
+              <option value="all" ${state.ledgerYear === "all" ? "selected" : ""}>Все годы</option>
+              ${years.map((y) => `<option value="${y}" ${String(state.ledgerYear) === String(y) ? "selected" : ""}>${y}</option>`).join("")}
+            </select>
+            <select id="ledger-month">
+              <option value="all" ${state.ledgerMonth === "all" ? "selected" : ""}>Все месяцы</option>
+              ${MONTHS.map((label, i) => `<option value="${i + 1}" ${String(state.ledgerMonth) === String(i + 1) ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <div class="tabs ledger-kind">
+          <button type="button" class="tab ${kind === "all" ? "active" : ""}" data-ledger-kind="all">Все</button>
+          <button type="button" class="tab ${kind === "accrual" ? "active" : ""}" data-ledger-kind="accrual">Начисления</button>
+          <button type="button" class="tab ${kind === "writeoff" ? "active" : ""}" data-ledger-kind="writeoff">Списания</button>
+        </div>
+        <div class="home-totals">
+          <div class="summary-card">
+            <div class="label">Начислено</div>
+            <div class="value">${formatMoney(accrued)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Списано</div>
+            <div class="value profit">${formatMoney(written)}</div>
+          </div>
+          <div class="summary-card saldo">
+            <div class="label">Записей</div>
+            <div class="value">${rows.length}</div>
+          </div>
+        </div>
+        <div class="table-panel">${body}</div>
+      `;
+    }
+
     function bindView() {
       document.getElementById("add-contractor")?.addEventListener("click", openContractorModal);
       bindSessionMenu();
@@ -4465,10 +4777,49 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         render();
       });
 
-      document.querySelectorAll("[data-open]").forEach((btn) => {
+      document.querySelectorAll("[data-open]").forEach((el) => {
+        const openCard = (e) => {
+          if (e.target.closest("[data-open-debt], [data-open-sort], .card-delete")) return;
+          openContractor(el.getAttribute("data-open"));
+        };
+        el.addEventListener("click", openCard);
+        el.addEventListener("keydown", (e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          if (e.target.closest("[data-open-debt], [data-open-sort]")) return;
+          e.preventDefault();
+          openContractor(el.getAttribute("data-open"));
+        });
+      });
+      document.querySelectorAll("[data-open-debt]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openDebtForContractor(btn.getAttribute("data-open-debt"), btn.getAttribute("data-record"));
+        });
+      });
+      document.querySelectorAll("[data-open-sort]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openUnsortedForContractor(btn.getAttribute("data-open-sort"));
+        });
+      });
+      document.getElementById("ledger-contractor")?.addEventListener("change", (e) => {
+        state.ledgerContractor = e.target.value || "all";
+        render();
+      });
+      document.getElementById("ledger-year")?.addEventListener("change", (e) => {
+        state.ledgerYear = e.target.value || "all";
+        render();
+      });
+      document.getElementById("ledger-month")?.addEventListener("change", (e) => {
+        state.ledgerMonth = e.target.value || "all";
+        render();
+      });
+      document.querySelectorAll("[data-ledger-kind]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const name = btn.getAttribute("data-open");
-          openContractor(name);
+          state.ledgerKind = btn.getAttribute("data-ledger-kind") || "all";
+          render();
         });
       });
 
