@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="85" />
+  <meta name="app-build" content="86" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=85" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=85" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=85" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=86" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=86" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=86" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1662,7 +1662,7 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s, transform 0.3s;
-      z-index: 40;
+      z-index: 60;
     }
 
     .toast.show {
@@ -1698,7 +1698,7 @@
       padding: 0;
       align-items: stretch;
       justify-content: stretch;
-      z-index: 24;
+      z-index: 50;
     }
 
     .pdf-sheet {
@@ -1710,15 +1710,24 @@
       background: #0a1628;
     }
 
-    .pdf-toolbar {
+    .pdf-toolbar,
+    .pdf-actions {
       flex-shrink: 0;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      padding: max(10px, env(safe-area-inset-top)) 12px 10px;
       background: #121f3a;
+    }
+
+    .pdf-toolbar {
+      padding: max(10px, env(safe-area-inset-top)) 12px 10px;
       border-bottom: 1px solid rgba(74, 158, 255, 0.28);
+    }
+
+    .pdf-actions {
+      padding: 10px 12px max(12px, env(safe-area-inset-bottom));
+      border-top: 1px solid rgba(74, 158, 255, 0.28);
     }
 
     .pdf-toolbar-title {
@@ -1729,13 +1738,18 @@
     }
 
     .pdf-toolbar .btn-primary,
-    .pdf-toolbar .btn-secondary {
-      flex: 0 0 auto;
-      padding: 8px 14px;
+    .pdf-toolbar .btn-secondary,
+    .pdf-actions .btn-primary,
+    .pdf-actions .btn-secondary {
+      flex: 1 1 auto;
+      min-height: 44px;
+      padding: 10px 14px;
     }
 
     .pdf-toolbar .btn-primary:disabled,
-    .pdf-toolbar .btn-secondary:disabled {
+    .pdf-toolbar .btn-secondary:disabled,
+    .pdf-actions .btn-primary:disabled,
+    .pdf-actions .btn-secondary:disabled {
       opacity: 0.7;
     }
 
@@ -1743,6 +1757,15 @@
       flex: 1 1 auto;
       overflow: auto;
       -webkit-overflow-scrolling: touch;
+      background: #0a1628;
+      min-height: 0;
+    }
+
+    .pdf-frame {
+      width: 100%;
+      height: 100%;
+      min-height: 50vh;
+      border: 0;
       background: #0a1628;
     }
 
@@ -1940,7 +1963,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=85" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=86" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2232,13 +2255,17 @@
   <div class="overlay" id="pdf-overlay" role="dialog" aria-modal="true" aria-labelledby="pdf-toolbar-title">
     <div class="pdf-sheet">
       <div class="pdf-toolbar">
-        <button type="button" class="btn-secondary" id="pdf-close">Закрыть</button>
+        <button type="button" class="btn-secondary" id="pdf-close">← Назад</button>
         <div class="pdf-toolbar-title" id="pdf-toolbar-title">Отчёт PDF</div>
-        <button type="button" class="btn-secondary hidden" id="pdf-share">Поделиться</button>
-        <button type="button" class="btn-primary" id="pdf-download">Скачать на телефон</button>
       </div>
-      <div class="pdf-scroll">
+      <div class="pdf-scroll" id="pdf-scroll">
         <div class="pdf-doc" id="pdf-doc"></div>
+        <iframe class="pdf-frame hidden" id="pdf-frame" title="Файл PDF"></iframe>
+      </div>
+      <div class="pdf-actions">
+        <button type="button" class="btn-secondary" id="pdf-close-bottom">Назад</button>
+        <button type="button" class="btn-secondary" id="pdf-share">Поделиться</button>
+        <button type="button" class="btn-primary" id="pdf-download">Скачать PDF</button>
       </div>
     </div>
   </div>
@@ -2251,7 +2278,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "85";
+    const APP_BUILD = "86";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3871,114 +3898,152 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return "База Баляевой — " + name + " — " + period + ".pdf";
     }
 
-    function canSharePdfFile() {
-      try {
-        const file = new File(["%PDF"], "report.pdf", { type: "application/pdf" });
-        return Boolean(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
-      } catch (err) {
-        return Boolean(navigator.share);
-      }
+    function isTouchPhone() {
+      return window.matchMedia("(pointer: coarse)").matches || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "");
     }
 
     function loadHtml2Pdf() {
       if (window.html2pdf) return Promise.resolve(window.html2pdf);
-      return new Promise((resolve, reject) => {
+      const local = new URL("vendor/html2pdf.bundle.min.js", document.baseURI).href;
+      const cdn = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      const inject = (src) => new Promise((resolve, reject) => {
         const script = document.createElement("script");
-        script.src = "vendor/html2pdf.bundle.min.js";
+        script.src = src;
         script.onload = () => window.html2pdf ? resolve(window.html2pdf) : reject(new Error("html2pdf"));
-        script.onerror = () => {
-          const cdn = document.createElement("script");
-          cdn.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-          cdn.onload = () => window.html2pdf ? resolve(window.html2pdf) : reject(new Error("html2pdf"));
-          cdn.onerror = () => reject(new Error("html2pdf"));
-          document.head.appendChild(cdn);
-        };
+        script.onerror = () => reject(new Error("html2pdf"));
         document.head.appendChild(script);
       });
+      return inject(local).catch(() => inject(cdn));
+    }
+
+    function resetPdfViewer() {
+      const frame = document.getElementById("pdf-frame");
+      const doc = document.getElementById("pdf-doc");
+      if (frame) {
+        if (frame.dataset.url) URL.revokeObjectURL(frame.dataset.url);
+        frame.dataset.url = "";
+        frame.removeAttribute("src");
+        frame.classList.add("hidden");
+      }
+      if (doc) doc.classList.remove("hidden");
     }
 
     function closePdfPreview() {
+      resetPdfViewer();
       document.getElementById("pdf-overlay")?.classList.remove("open");
     }
 
     function exportContractorPdf() {
       const name = state.contractor;
       if (!name) return;
-      const title = name + " · " + periodRangeLabel();
-      document.getElementById("pdf-toolbar-title").textContent = title;
+      resetPdfViewer();
+      document.getElementById("pdf-toolbar-title").textContent = name + " · " + periodRangeLabel();
       document.getElementById("pdf-doc").innerHTML = contractorPdfInnerHtml(name);
-      const shareBtn = document.getElementById("pdf-share");
-      shareBtn.classList.toggle("hidden", !canSharePdfFile());
       document.getElementById("pdf-overlay").classList.add("open");
-      document.querySelector("#pdf-overlay .pdf-scroll")?.scrollTo(0, 0);
+      document.getElementById("pdf-scroll")?.scrollTo(0, 0);
+    }
+
+    function withTimeout(promise, ms) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("timeout")), ms);
+        promise.then((value) => {
+          clearTimeout(timer);
+          resolve(value);
+        }, (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
     }
 
     async function buildContractorPdfBlob() {
       const html2pdf = await loadHtml2Pdf();
       const source = document.getElementById("pdf-doc");
       if (!source || !source.innerHTML.trim()) throw new Error("empty");
-      const clone = source.cloneNode(true);
-      clone.id = "pdf-doc-print";
-      clone.style.width = "210mm";
-      clone.style.maxWidth = "210mm";
-      clone.style.padding = "12mm";
-      clone.style.boxSizing = "border-box";
-      clone.style.background = "#0a1628";
-      const host = document.createElement("div");
-      host.style.cssText = "position:fixed;left:-12000px;top:0;width:210mm;background:#0a1628;z-index:-1;";
-      host.appendChild(clone);
-      document.body.appendChild(host);
+      source.classList.remove("hidden");
+      const prev = source.getAttribute("style") || "";
+      source.style.width = "210mm";
+      source.style.maxWidth = "210mm";
+      source.style.background = "#0a1628";
       try {
-        return await html2pdf().set({
+        const worker = html2pdf().set({
           margin: 0,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#0a1628", windowWidth: 794 },
+          image: { type: "jpeg", quality: 0.92 },
+          html2canvas: {
+            scale: isTouchPhone() ? 1.2 : 2,
+            useCORS: true,
+            backgroundColor: "#0a1628",
+            windowWidth: 794,
+            scrollX: 0,
+            scrollY: 0
+          },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
           pagebreak: { mode: ["css", "legacy"] }
-        }).from(clone).outputPdf("blob");
+        }).from(source).outputPdf("blob");
+        return await withTimeout(worker, 25000);
       } finally {
-        host.remove();
+        source.setAttribute("style", prev);
       }
+    }
+
+    function showPdfBlob(blob) {
+      const frame = document.getElementById("pdf-frame");
+      const doc = document.getElementById("pdf-doc");
+      if (!frame) return;
+      if (frame.dataset.url) URL.revokeObjectURL(frame.dataset.url);
+      const url = URL.createObjectURL(blob);
+      frame.dataset.url = url;
+      frame.src = url;
+      frame.classList.remove("hidden");
+      if (doc) doc.classList.add("hidden");
+      document.getElementById("pdf-scroll")?.scrollTo(0, 0);
+    }
+
+    async function deliverPdfBlob(blob, filename, preferShare) {
+      const file = new File([blob], filename, { type: "application/pdf" });
+      const canFiles = (() => {
+        try { return Boolean(navigator.canShare && navigator.canShare({ files: [file] })); }
+        catch (err) { return false; }
+      })();
+      if ((preferShare || isTouchPhone()) && navigator.share && canFiles) {
+        await navigator.share({ files: [file], title: filename });
+        return "shared";
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+      if (isTouchPhone()) {
+        showPdfBlob(blob);
+        showToast("Если файл не сохранился — нажмите «Поделиться» или удержите PDF");
+        return "preview";
+      }
+      showToast("PDF скачан");
+      return "download";
     }
 
     async function saveContractorPdf(share) {
       const name = state.contractor;
       if (!name) return;
-      const btn = document.getElementById(share ? "pdf-share" : "pdf-download");
-      const prev = btn ? btn.textContent : "";
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Готовлю PDF…";
-      }
+      const buttons = ["pdf-download", "pdf-share"].map((id) => document.getElementById(id)).filter(Boolean);
+      buttons.forEach((btn) => { btn.disabled = true; });
+      const down = document.getElementById("pdf-download");
+      const prev = down ? down.textContent : "";
+      if (down) down.textContent = "Готовлю PDF…";
       try {
         const blob = await buildContractorPdfBlob();
-        const filename = pdfFileName(name);
-        const file = new File([blob], filename, { type: "application/pdf" });
-        if (share && navigator.share) {
-          const payload = { files: [file], title: filename };
-          if (!navigator.canShare || navigator.canShare(payload)) {
-            await navigator.share(payload);
-            return;
-          }
-        }
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        link.rel = "noopener";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
-        showToast("PDF сохранён. Если файл не появился — нажмите «Поделиться»");
+        await deliverPdfBlob(blob, pdfFileName(name), share);
       } catch (err) {
         if (err && err.name === "AbortError") return;
-        showToast("Не удалось собрать PDF. Проверьте интернет и попробуйте ещё раз");
+        showToast("Не удалось собрать файл. Оставайтесь в отчёте — его можно пролистать, кнопка «Назад» закрывает окно");
       } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = prev;
-        }
+        buttons.forEach((btn) => { btn.disabled = false; });
+        if (down) down.textContent = prev || "Скачать PDF";
       }
     }
 
@@ -6735,11 +6800,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     document.getElementById("pdf-close").addEventListener("click", closePdfPreview);
+    document.getElementById("pdf-close-bottom").addEventListener("click", closePdfPreview);
     document.getElementById("pdf-download").addEventListener("click", () => saveContractorPdf(false));
     document.getElementById("pdf-share").addEventListener("click", () => saveContractorPdf(true));
-    document.getElementById("pdf-overlay").addEventListener("click", (e) => {
-      if (e.target.id === "pdf-overlay") closePdfPreview();
-    });
     document.getElementById("record-form").addEventListener("submit", submitRecord);
     document.getElementById("record-cancel").addEventListener("click", closeRecordModal);
     document.getElementById("field-category").addEventListener("change", () => {
