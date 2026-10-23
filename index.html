@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="89" />
+  <meta name="app-build" content="90" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=89" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=89" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=89" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=90" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=90" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=90" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -2020,7 +2020,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=89" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=90" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2335,7 +2335,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "89";
+    const APP_BUILD = "90";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -4017,77 +4017,201 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return el.getBoundingClientRect().top - root.getBoundingClientRect().top;
     }
 
-    function layoutPdfPages(root) {
+    function layoutPdfPages(root, pageHmm) {
       const width = root.getBoundingClientRect().width;
       if (!width) return;
-      const px = width / 210;
-      const pageH = 297 * px;
-      const edge = 12 * px;
-      const titleReserve = 42 * px;
-      const usable = pageH - edge * 2;
+      const px = width / 186;
+      const pageH = pageHmm * px;
+      const titleReserve = 40 * px;
       const blocks = [...root.querySelectorAll(".pdf-card, .pdf-group-start, .pdf-keep, .pdf-line, .pdf-sub-total, .pdf-group-total, .pdf-empty, .pdf-pay")];
       let page = 0;
       blocks.forEach((el) => {
         if (el.classList.contains("pdf-keep") && el.closest(".pdf-group-start")) return;
         const height = el.getBoundingClientRect().height;
-        if (height > usable - 1) return;
+        if (height > pageH - 1) return;
         let top = pdfOffsetTop(el, root);
         while (top >= (page + 1) * pageH - 0.5) page += 1;
-        const limit = (page + 1) * pageH - edge;
-        const isTitle = el.classList.contains("pdf-group-start");
+        const limit = (page + 1) * pageH;
+        const isTitle = el.classList.contains("pdf-group-start") || el.classList.contains("pdf-keep");
         const startsLate = isTitle && top > limit - titleReserve;
         const overflows = top + height > limit + 0.5;
         if (!startsLate && !overflows) return;
-        const target = isTitle && el.closest(".pdf-group") ? el.closest(".pdf-group") : el;
+        const target = el.classList.contains("pdf-group-start") && el.closest(".pdf-group")
+          ? el.closest(".pdf-group")
+          : el;
         const targetTop = pdfOffsetTop(target, root);
-        const nextTop = (page + 1) * pageH + edge;
+        const nextTop = (page + 1) * pageH;
         const gap = nextTop - targetTop;
         if (gap < 2) return;
         const spacer = document.createElement("div");
         spacer.className = "pdf-page-gap";
         spacer.setAttribute("aria-hidden", "true");
-        spacer.style.height = gap + "px";
+        spacer.style.height = Math.max(2, gap) + "px";
+        spacer.style.background = "#0a1628";
         target.parentNode.insertBefore(spacer, target);
         page += 1;
       });
     }
 
-    async function buildContractorPdfBlob() {
+    function strToPdfBytes(text) {
+      const out = new Uint8Array(text.length);
+      for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 255;
+      return out;
+    }
+
+    function concatPdfBytes(chunks) {
+      const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const out = new Uint8Array(total);
+      let offset = 0;
+      chunks.forEach((chunk) => {
+        out.set(chunk, offset);
+        offset += chunk.length;
+      });
+      return out;
+    }
+
+    function dataUrlToBytes(dataUrl) {
+      const raw = atob(String(dataUrl || "").split(",")[1] || "");
+      const out = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+      return out;
+    }
+
+    function mmToPt(mm) {
+      return mm * 72 / 25.4;
+    }
+
+    function buildA4PdfFromSlices(slices) {
+      const pageW = mmToPt(210);
+      const pageH = mmToPt(297);
+      const margin = mmToPt(12);
+      const innerW = mmToPt(186);
+      const objects = [null];
+      const add = (obj) => {
+        objects.push(obj);
+        return objects.length - 1;
+      };
+      const catalogId = add({});
+      const pagesId = add({});
+      const pageRefs = [];
+      slices.forEach((slice, index) => {
+        const jpeg = dataUrlToBytes(slice.dataUrl);
+        const drawH = innerW * (slice.height / slice.width);
+        const y = pageH - margin - drawH;
+        const imgId = add({
+          dict: `<< /Type /XObject /Subtype /Image /Width ${slice.width} /Height ${slice.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>`,
+          stream: jpeg
+        });
+        const content = `q 0.03922 0.08627 0.15686 rg 0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)} re f Q\nq ${innerW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${margin.toFixed(2)} ${y.toFixed(2)} cm /Im${index} Do Q\n`;
+        const contentBytes = strToPdfBytes(content);
+        const contentId = add({
+          dict: `<< /Length ${contentBytes.length} >>`,
+          stream: contentBytes
+        });
+        const pageId = add({
+          dict: `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)}] /Contents ${contentId} 0 R /Resources << /XObject << /Im${index} ${imgId} 0 R >> >> >>`
+        });
+        pageRefs.push(pageId);
+      });
+      objects[catalogId] = { dict: `<< /Type /Catalog /Pages ${pagesId} 0 R >>` };
+      objects[pagesId] = { dict: `<< /Type /Pages /Count ${pageRefs.length} /Kids [${pageRefs.map((id) => id + " 0 R").join(" ")}] >>` };
+      const parts = [strToPdfBytes("%PDF-1.4\n")];
+      const offsets = [0];
+      let pos = parts[0].length;
+      for (let i = 1; i < objects.length; i++) {
+        offsets[i] = pos;
+        const obj = objects[i];
+        let chunk;
+        if (obj.stream) {
+          chunk = concatPdfBytes([
+            strToPdfBytes(i + " 0 obj\n" + obj.dict + "\nstream\n"),
+            obj.stream,
+            strToPdfBytes("\nendstream\nendobj\n")
+          ]);
+        } else {
+          chunk = strToPdfBytes(i + " 0 obj\n" + obj.dict + "\nendobj\n");
+        }
+        parts.push(chunk);
+        pos += chunk.length;
+      }
+      const xrefPos = pos;
+      let xref = "xref\n0 " + objects.length + "\n0000000000 65535 f \n";
+      for (let i = 1; i < objects.length; i++) {
+        xref += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
+      }
+      xref += "trailer\n<< /Size " + objects.length + " /Root 1 0 R >>\nstartxref\n" + xrefPos + "\n%%EOF\n";
+      parts.push(strToPdfBytes(xref));
+      return new Blob([concatPdfBytes(parts)], { type: "application/pdf" });
+    }
+
+    async function capturePdfCanvas(el) {
       const html2pdf = await loadHtml2Pdf();
+      const width = Math.max(360, Math.round(el.getBoundingClientRect().width) || 703);
+      if (typeof window.html2canvas === "function") {
+        return window.html2canvas(el, {
+          scale: isTouchPhone() ? 1.4 : 2,
+          useCORS: true,
+          backgroundColor: "#0a1628",
+          width,
+          windowWidth: width,
+          scrollX: 0,
+          scrollY: 0
+        });
+      }
+      return html2pdf().set({
+        html2canvas: {
+          scale: isTouchPhone() ? 1.4 : 2,
+          useCORS: true,
+          backgroundColor: "#0a1628",
+          windowWidth: width,
+          scrollX: 0,
+          scrollY: 0
+        }
+      }).from(el).toCanvas().get("canvas");
+    }
+
+    async function buildContractorPdfBlob() {
       const source = document.getElementById("pdf-doc");
       if (!source || !source.innerHTML.trim()) throw new Error("empty");
       source.classList.remove("hidden");
-      const host = document.createElement("div");
-      host.setAttribute("aria-hidden", "true");
-      host.style.cssText = "position:fixed;left:0;top:0;width:210mm;opacity:0.01;pointer-events:none;z-index:-1;background:#0a1628;";
-      const clone = source.cloneNode(true);
-      clone.id = "pdf-doc-print";
-      clone.style.width = "210mm";
-      clone.style.maxWidth = "210mm";
-      clone.style.padding = "12mm";
-      clone.style.boxSizing = "border-box";
-      clone.style.background = "#0a1628";
-      host.appendChild(clone);
-      document.body.appendChild(host);
+      const frame = document.getElementById("pdf-frame");
+      if (frame) frame.classList.add("hidden");
+      const prev = source.getAttribute("style") || "";
+      source.style.width = "186mm";
+      source.style.maxWidth = "186mm";
+      source.style.padding = "0";
+      source.style.margin = "0 auto";
+      source.style.background = "#0a1628";
+      source.querySelectorAll(".pdf-page-gap").forEach((node) => node.remove());
       try {
-        layoutPdfPages(clone);
-        const worker = html2pdf().set({
-          margin: 0,
-          image: { type: "jpeg", quality: 0.92 },
-          html2canvas: {
-            scale: isTouchPhone() ? 1.2 : 2,
-            useCORS: true,
-            backgroundColor: "#0a1628",
-            windowWidth: 794,
-            scrollX: 0,
-            scrollY: 0
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css"] }
-        }).from(clone).outputPdf("blob");
-        return await withTimeout(worker, 28000);
+        layoutPdfPages(source, 273);
+        const canvas = await withTimeout(capturePdfCanvas(source), 28000);
+        if (!canvas || !canvas.width) throw new Error("canvas");
+        const pagePx = canvas.width * (273 / 186);
+        const slices = [];
+        let y = 0;
+        while (y < canvas.height - 0.5) {
+          const h = Math.min(pagePx, canvas.height - y);
+          const slice = document.createElement("canvas");
+          slice.width = canvas.width;
+          slice.height = Math.max(1, Math.round(h));
+          const ctx = slice.getContext("2d");
+          ctx.fillStyle = "#0a1628";
+          ctx.fillRect(0, 0, slice.width, slice.height);
+          ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, slice.height);
+          slices.push({
+            dataUrl: slice.toDataURL("image/jpeg", 0.92),
+            width: slice.width,
+            height: slice.height
+          });
+          y += pagePx;
+        }
+        if (!slices.length) throw new Error("pages");
+        return buildA4PdfFromSlices(slices);
       } finally {
-        host.remove();
+        source.querySelectorAll(".pdf-page-gap").forEach((node) => node.remove());
+        if (prev) source.setAttribute("style", prev);
+        else source.removeAttribute("style");
       }
     }
 
