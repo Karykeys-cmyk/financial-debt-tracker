@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="83" />
+  <meta name="app-build" content="84" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=83" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=83" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=83" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=84" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=84" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=84" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1729,7 +1729,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=83" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=84" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2026,7 +2026,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "83";
+    const APP_BUILD = "84";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3275,17 +3275,17 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function lastDebtOf(name) {
-      const recs = debtRecords(name).slice();
+      const recs = debtRecords(name).filter((r) => !isBorrowed(r));
       if (!recs.length) return null;
-      const loans = recs.filter((r) => r.category === "Деньги в долг");
-      const pool = loans.length ? loans : recs;
-      pool.sort((a, b) => {
-        const da = String(a.issueDate || a.date || "");
-        const db = String(b.issueDate || b.date || "");
+      recs.sort((a, b) => {
+        const byMonth = rentalMonthKey(b) - rentalMonthKey(a);
+        if (byMonth) return byMonth;
+        const da = String(a.date || a.issueDate || "");
+        const db = String(b.date || b.issueDate || "");
         if (da !== db) return db.localeCompare(da);
         return String(b.id || "").localeCompare(String(a.id || ""));
       });
-      return pool[0];
+      return recs[0];
     }
 
     function lastDebtCueHtml(name) {
@@ -3294,10 +3294,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         return `<div class="name-payment-cue empty">Долгов пока нет</div>`;
       }
       const extra = [rec.category, rec.subCategory, rec.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
-      const day = String(rec.issueDate || rec.date || "").slice(0, 10);
       return `<button type="button" class="name-payment-cue is-link" data-open-debt="${escapeHtml(name)}" data-record="${escapeHtml(rec.id)}">
         <div class="cue-label">Последний долг</div>
-        <div class="cue-main">${escapeHtml(day ? formatDate(day) : "—")} · ${escapeHtml(formatMoney(recordDue(rec)))}</div>
+        <div class="cue-main">${escapeHtml(recordDateLabel(rec))} · ${escapeHtml(formatMoney(recordDue(rec)))}</div>
         ${extra ? `<div class="cue-comment">${escapeHtml(extra)}</div>` : ""}
         <div class="cue-hint">Нажмите, чтобы открыть долг</div>
       </button>`;
