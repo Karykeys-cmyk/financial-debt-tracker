@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="87" />
+  <meta name="app-build" content="88" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=86" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=86" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=86" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=88" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=88" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=88" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -59,11 +59,17 @@
       min-height: 100dvh;
       min-height: -webkit-fill-available;
       background-color: #0a1628;
+      max-width: 100%;
+      overflow-x: hidden;
+      overscroll-behavior-x: none;
     }
 
     html.overlay-open,
     body.overlay-open {
       overflow: hidden;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+      touch-action: pan-y;
       background-color: #0a1628;
     }
 
@@ -115,6 +121,8 @@
     input, select, textarea {
       background-color: #121f3a;
       color: #ffffff;
+      max-width: 100%;
+      min-width: 0;
     }
 
     input[type="text"],
@@ -150,6 +158,8 @@
       left: 0;
       right: 0;
       width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
       z-index: 15;
     }
 
@@ -253,10 +263,13 @@
     .app {
       position: relative;
       z-index: 1;
-      max-width: 1560px;
+      max-width: min(1560px, 100%);
       margin: 0 auto;
       padding: 8px 28px 48px;
       min-height: 100vh;
+      min-width: 0;
+      overflow-x: hidden;
+      overflow-x: clip;
     }
 
     .topbar {
@@ -265,6 +278,8 @@
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 22px;
+      flex-wrap: wrap;
+      min-width: 0;
     }
 
     .topbar-actions {
@@ -582,7 +597,7 @@
 
     .contractors {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
       gap: 16px;
     }
 
@@ -911,6 +926,8 @@
       gap: 10px;
       align-items: baseline;
       margin-bottom: 10px;
+      flex-wrap: wrap;
+      min-width: 0;
     }
 
     .payments-head span {
@@ -920,12 +937,13 @@
 
     .payment-item {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       gap: 8px;
       align-items: center;
       padding: 8px 0;
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       font-size: 0.92rem;
+      min-width: 0;
     }
 
     .payment-item .meta {
@@ -1178,7 +1196,8 @@
     }
 
     .analytics-head select {
-      min-width: 160px;
+      min-width: 0;
+      flex: 1 1 140px;
       padding: 10px 12px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1216,8 +1235,8 @@
     }
 
     .table-toolbar input[type="search"] {
-      min-width: 220px;
-      flex: 1;
+      min-width: 0;
+      flex: 1 1 180px;
       max-width: 360px;
       padding: 10px 12px;
       border-radius: 12px;
@@ -1247,7 +1266,8 @@
     }
 
     .table-toolbar select {
-      min-width: 220px;
+      min-width: 0;
+      flex: 1 1 160px;
       padding: 10px 12px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1380,7 +1400,9 @@
       padding: 12px;
       padding-bottom: max(12px, env(safe-area-inset-bottom));
       overflow: hidden;
+      overflow-x: hidden;
       overscroll-behavior: none;
+      touch-action: pan-y;
     }
 
     .overlay.open {
@@ -1389,10 +1411,10 @@
 
     html.keyboard-open .overlay.open {
       top: var(--vv-top, 0px);
-      left: var(--vv-left, 0px);
-      width: var(--vv-width, 100%);
+      left: 0;
+      right: 0;
+      width: auto;
       height: var(--vv-height, 100%);
-      right: auto;
       bottom: auto;
       align-items: flex-start;
       background: #0a1628;
@@ -1425,12 +1447,15 @@
 
     .modal {
       width: min(520px, 100%);
+      max-width: 100%;
+      min-width: 0;
       max-height: calc(100vh - 24px);
       max-height: calc(100svh - 24px);
       max-height: calc(100dvh - 24px);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      overflow-x: hidden;
       background: linear-gradient(180deg, #121f3a, #0a1628);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 16px;
@@ -1452,7 +1477,9 @@
 
     .modal-scroll {
       flex: 1 1 auto;
+      min-width: 0;
       min-height: 0;
+      overflow-x: hidden;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
@@ -1475,6 +1502,8 @@
     .field select,
     .field textarea {
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       padding: 11px 12px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1945,7 +1974,13 @@
       .sync-orb svg { width: 28px; height: 28px; }
       .desktop-table { display: none; }
       .mobile-list { display: flex; }
-      .table-panel { overflow: visible; }
+      .table-panel { overflow: hidden; }
+      .table-toolbar input[type="search"],
+      .table-toolbar select { width: 100%; max-width: none; }
+      .table-toolbar .toolbar-left,
+      .table-toolbar .toolbar-right { width: 100%; }
+      .summary-card .value { white-space: normal; overflow-wrap: anywhere; }
+      .card-stats .stat-value { white-space: normal; overflow-wrap: anywhere; }
       .analytics { padding: 12px 12px 10px; margin-bottom: 10px; }
       .analytics-head { gap: 8px; }
       .analytics-head select { min-width: 0; flex: 1 1 120px; padding: 8px 10px; }
@@ -1956,6 +1991,8 @@
       .session-bar { margin-bottom: 10px; }
       .contractor-card { padding: 18px 14px 20px; }
       .last-return { margin-bottom: 12px; padding: 10px 12px; font-size: 0.85rem; }
+      .modal { padding: 16px 14px 12px; }
+      .overlay { padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -1963,7 +2000,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=86" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=88" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2278,7 +2315,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "86";
+    const APP_BUILD = "88";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -6910,6 +6947,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const open = [...document.querySelectorAll(".overlay")].some((el) => el.classList.contains("open"));
       const body = document.body;
       const html = document.documentElement;
+      html.scrollLeft = 0;
+      body.scrollLeft = 0;
       if (open) {
         if (!body.classList.contains("overlay-open")) {
           refreshOverlayLock.scrollY = window.scrollY || window.pageYOffset || 0;
