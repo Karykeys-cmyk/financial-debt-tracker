@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="88" />
+  <meta name="app-build" content="89" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=88" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=88" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=88" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=89" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=89" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=89" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1881,6 +1881,22 @@
       border: 1px solid rgba(74, 158, 255, 0.32);
     }
 
+    .pdf-group-start,
+    .pdf-keep,
+    .pdf-line,
+    .pdf-sub-total,
+    .pdf-group-total,
+    .pdf-card {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .pdf-group-start {
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+
+    .pdf-group-start h2,
     .pdf-group > h2 {
       font-size: 22px;
       letter-spacing: 0.06em;
@@ -1889,13 +1905,17 @@
       color: #ffffff;
     }
 
+    .pdf-page-gap {
+      width: 100%;
+      pointer-events: none;
+    }
+
     .pdf-sub {
       margin: 10px 0;
       padding: 12px;
       border-radius: 12px;
       background: rgba(176, 214, 255, 0.12);
       border: 1px solid rgba(176, 214, 255, 0.22);
-      break-inside: avoid;
     }
 
     .pdf-sub h3 {
@@ -2000,7 +2020,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=88" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=89" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2315,7 +2335,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "88";
+    const APP_BUILD = "89";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3889,7 +3909,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             ? `<h3>${escapeHtml(sub.title)}</h3>`
             : "";
           return `<div class="pdf-sub">
-            ${subHead}
+            ${subHead ? `<div class="pdf-keep">${subHead}</div>` : ""}
             ${recs.map(reportLineHtml).join("")}
             <div class="pdf-sub-total">Сальдо · ${escapeHtml(sub.title)}: <b>${escapeHtml(formatMoney(left))}</b>
               <span>начислено ${escapeHtml(formatMoney(due))} · приход ${escapeHtml(formatMoney(paid))}</span>
@@ -3901,7 +3921,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           sum + all.filter(sub.match).reduce((s, r) => s + Math.max(0, remainingOf(r)), 0)
         ), 0);
         return `<section class="pdf-group">
-          <h2>${escapeHtml(group.title)}</h2>
+          <div class="pdf-group-start"><h2>${escapeHtml(group.title)}</h2></div>
           ${subBlocks}
           <div class="pdf-group-total">Итоговое сальдо по группе «${escapeHtml(group.title)}»: ${escapeHtml(formatMoney(groupLeft))}</div>
         </section>`;
@@ -3920,7 +3940,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </header>
         ${groupHtml || `<p class="pdf-empty">За выбранный период записей нет</p>`}
         ${leftover.length ? `<section class="pdf-group">
-          <h2>Неразнесённые приходы</h2>
+          <div class="pdf-group-start"><h2>Неразнесённые приходы</h2></div>
           ${leftover.map((p) => {
             const extra = [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
             return `<div class="pdf-pay">Приход ${escapeHtml(formatDate(p.date))} · ${escapeHtml(formatMoney(p.amount))}${extra ? " · " + escapeHtml(extra) : ""}</div>`;
@@ -3993,16 +4013,64 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
     }
 
+    function pdfOffsetTop(el, root) {
+      return el.getBoundingClientRect().top - root.getBoundingClientRect().top;
+    }
+
+    function layoutPdfPages(root) {
+      const width = root.getBoundingClientRect().width;
+      if (!width) return;
+      const px = width / 210;
+      const pageH = 297 * px;
+      const edge = 12 * px;
+      const titleReserve = 42 * px;
+      const usable = pageH - edge * 2;
+      const blocks = [...root.querySelectorAll(".pdf-card, .pdf-group-start, .pdf-keep, .pdf-line, .pdf-sub-total, .pdf-group-total, .pdf-empty, .pdf-pay")];
+      let page = 0;
+      blocks.forEach((el) => {
+        if (el.classList.contains("pdf-keep") && el.closest(".pdf-group-start")) return;
+        const height = el.getBoundingClientRect().height;
+        if (height > usable - 1) return;
+        let top = pdfOffsetTop(el, root);
+        while (top >= (page + 1) * pageH - 0.5) page += 1;
+        const limit = (page + 1) * pageH - edge;
+        const isTitle = el.classList.contains("pdf-group-start");
+        const startsLate = isTitle && top > limit - titleReserve;
+        const overflows = top + height > limit + 0.5;
+        if (!startsLate && !overflows) return;
+        const target = isTitle && el.closest(".pdf-group") ? el.closest(".pdf-group") : el;
+        const targetTop = pdfOffsetTop(target, root);
+        const nextTop = (page + 1) * pageH + edge;
+        const gap = nextTop - targetTop;
+        if (gap < 2) return;
+        const spacer = document.createElement("div");
+        spacer.className = "pdf-page-gap";
+        spacer.setAttribute("aria-hidden", "true");
+        spacer.style.height = gap + "px";
+        target.parentNode.insertBefore(spacer, target);
+        page += 1;
+      });
+    }
+
     async function buildContractorPdfBlob() {
       const html2pdf = await loadHtml2Pdf();
       const source = document.getElementById("pdf-doc");
       if (!source || !source.innerHTML.trim()) throw new Error("empty");
       source.classList.remove("hidden");
-      const prev = source.getAttribute("style") || "";
-      source.style.width = "210mm";
-      source.style.maxWidth = "210mm";
-      source.style.background = "#0a1628";
+      const host = document.createElement("div");
+      host.setAttribute("aria-hidden", "true");
+      host.style.cssText = "position:fixed;left:0;top:0;width:210mm;opacity:0.01;pointer-events:none;z-index:-1;background:#0a1628;";
+      const clone = source.cloneNode(true);
+      clone.id = "pdf-doc-print";
+      clone.style.width = "210mm";
+      clone.style.maxWidth = "210mm";
+      clone.style.padding = "12mm";
+      clone.style.boxSizing = "border-box";
+      clone.style.background = "#0a1628";
+      host.appendChild(clone);
+      document.body.appendChild(host);
       try {
+        layoutPdfPages(clone);
         const worker = html2pdf().set({
           margin: 0,
           image: { type: "jpeg", quality: 0.92 },
@@ -4015,11 +4083,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             scrollY: 0
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"] }
-        }).from(source).outputPdf("blob");
-        return await withTimeout(worker, 25000);
+          pagebreak: { mode: ["css"] }
+        }).from(clone).outputPdf("blob");
+        return await withTimeout(worker, 28000);
       } finally {
-        source.setAttribute("style", prev);
+        host.remove();
       }
     }
 
