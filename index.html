@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="82" />
+  <meta name="app-build" content="83" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=82" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=82" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=82" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=83" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=83" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=83" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -265,6 +265,12 @@
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 22px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .back-btn {
@@ -1723,7 +1729,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=82" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=83" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2020,7 +2026,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "82";
+    const APP_BUILD = "83";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3420,18 +3426,29 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function debitBreakdown(name, usePeriod) {
+      return currentDebtParts(name, { usePeriod: Boolean(usePeriod), remaining: false });
+    }
+
+    function currentDebtParts(name, options) {
+      const opts = options || {};
       let records = debtRecords(name);
-      if (usePeriod) records = records.filter(inSelectedPeriod);
-      const add = (pred) => records.reduce((sum, r) => pred(r) ? sum + recordDue(r) : sum, 0);
-      const rentOnly = add((r) => r.category === "Аренда помещения" && r.subCategory === "Аренда");
-      const utilities = add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка");
-      const dtf = add((r) => r.category === "Аренда ДТФ");
-      const cash = add((r) => r.category === "Деньги в долг" && r.loanSide !== "in");
-      const invoices = add((r) => r.category === "Счета");
-      if (sourceContractorName(name) === "Даня") {
-        return { rent: rentOnly + utilities, dtf, cash, invoices };
-      }
-      return { rent: rentOnly + dtf, utilities, cash, invoices };
+      if (opts.usePeriod) records = records.filter(inSelectedPeriod);
+      if (opts.remaining) records = records.filter((r) => remainingOf(r) > 0.009);
+      const valueOf = (r) => opts.remaining ? Math.max(0, remainingOf(r)) : recordDue(r);
+      const add = (pred) => records.reduce((sum, r) => pred(r) ? sum + valueOf(r) : sum, 0);
+      const rentOnly = add((r) => r.category === "Аренда помещения" && r.subCategory === "Аренда" && !isBorrowed(r));
+      const utilities = add((r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка" && !isBorrowed(r));
+      const dtf = add((r) => r.category === "Аренда ДТФ" && !isBorrowed(r));
+      const cash = add((r) => r.category === "Деньги в долг" && !isBorrowed(r));
+      const invoices = add((r) => r.category === "Счета" && !isBorrowed(r));
+      return {
+        rent: rentOnly,
+        utilities,
+        dtf,
+        cash,
+        invoices,
+        total: rentOnly + utilities + dtf + cash + invoices
+      };
     }
 
     function periodYears() {
@@ -3460,20 +3477,210 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     }
 
     function debitBreakdownRows(name, split) {
-      if (sourceContractorName(name) === "Даня") {
+      return currentDebtRows(name, split);
+    }
+
+    function currentDebtRows(name, split) {
+      const src = sourceContractorName(name);
+      if (src === "Даня") {
         return [
-          ["Всего за аренду", split.rent],
-          ["Всего Аренда ДТФ", split.dtf],
-          ["Всего отдано", split.cash],
-          ["По счетам", split.invoices]
+          ["Аренда", split.rent],
+          ["Коммуналка", split.utilities],
+          ["Аренда ДТФ", split.dtf],
+          ["Займы", split.cash],
+          ["Счета", split.invoices]
+        ];
+      }
+      if (src === "Максюшка") {
+        return [
+          ["Аренда", split.rent],
+          ["Коммуналка", split.utilities],
+          ["Займы", split.cash],
+          ["Счета", split.invoices]
         ];
       }
       return [
-        ["Всего за аренду", split.rent],
-        ["Коммуналка", split.utilities],
-        ["Всего по наличным", split.cash],
-        ["По счетам", split.invoices]
-      ];
+        ["Займы", split.cash],
+        ["Счета", split.invoices]
+      ].filter((row) => row[1] || contractorConfig(name).hasInvoices);
+    }
+
+    function reportGroupDefs(name) {
+      const cfg = contractorConfig(name);
+      const groups = [];
+      if (cfg.hasRental) {
+        groups.push({
+          title: "Аренда",
+          subs: [
+            { title: "Коммуналка", match: (r) => r.category === "Аренда помещения" && r.subCategory === "Коммуналка" },
+            { title: "Аренда", match: (r) => r.category === "Аренда помещения" && r.subCategory === "Аренда" }
+          ]
+        });
+      }
+      if (cfg.hasDtf) {
+        groups.push({
+          title: "Аренда ДТФ",
+          subs: [{ title: "Аренда ДТФ", match: (r) => r.category === "Аренда ДТФ" }]
+        });
+      }
+      if (cfg.hasInvoices) {
+        groups.push({
+          title: "Счета",
+          subs: [{ title: "Счета", match: (r) => r.category === "Счета" }]
+        });
+      }
+      groups.push({
+        title: "Деньги в долг",
+        subs: [
+          { title: "Выдали", match: (r) => r.category === "Деньги в долг" && !isBorrowed(r) },
+          { title: "Наш долг", match: (r) => isBorrowed(r) }
+        ]
+      });
+      return groups;
+    }
+
+    function sortReportRecords(rows) {
+      return rows.slice().sort((a, b) => {
+        const byMonth = rentalMonthKey(b) - rentalMonthKey(a);
+        if (byMonth) return byMonth;
+        const da = a.date || a.issueDate || "";
+        const db = b.date || b.issueDate || "";
+        return db.localeCompare(da) || String(b.id || "").localeCompare(String(a.id || ""));
+      });
+    }
+
+    function reportLineHtml(r) {
+      const paid = paymentSum(r);
+      const due = recordDue(r);
+      const left = Math.max(0, remainingOf(r));
+      const pays = (r.payments || []).slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+      const payHtml = pays.length
+        ? pays.map((p) => {
+            const extra = [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
+            return `<div class="pdf-pay">Приход ${escapeHtml(formatDate(p.date))} · ${escapeHtml(formatMoney(p.amount))}${extra ? " · " + escapeHtml(extra) : ""}</div>`;
+          }).join("")
+        : `<div class="pdf-pay muted">Приходов по этой записи нет</div>`;
+      return `<div class="pdf-line">
+        <div class="pdf-line-top">
+          <strong>${escapeHtml(recordDateLabel(r))}</strong>
+          <span>${escapeHtml(r.comment || "—")}</span>
+        </div>
+        <div class="pdf-calc">
+          <span>Начислено (уход) <b>${escapeHtml(formatMoney(due))}</b></span>
+          <span>Оплачено (приход) <b>${escapeHtml(formatMoney(paid))}</b></span>
+          <span>Сальдо <b>${escapeHtml(formatMoney(left))}</b></span>
+        </div>
+        ${payHtml}
+      </div>`;
+    }
+
+    function contractorPdfInnerHtml(name) {
+      const live = currentDebtParts(name, { remaining: true });
+      const t = totals(name);
+      const ours = ourDebt(name);
+      const rows = currentDebtRows(name, live).filter(([, amount]) => amount > 0.009);
+      const period = periodRangeLabel();
+      const groups = reportGroupDefs(name);
+      const all = debtRecords(name).filter(inSelectedPeriod);
+      const leftover = unsortedPayments(name).filter(inSelectedPeriod)
+        .slice()
+        .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+      const groupHtml = groups.map((group) => {
+        const subBlocks = group.subs.map((sub) => {
+          const recs = sortReportRecords(all.filter(sub.match));
+          if (!recs.length) return "";
+          let due = 0;
+          let paid = 0;
+          let left = 0;
+          recs.forEach((r) => {
+            due += recordDue(r);
+            paid += paymentSum(r);
+            left += Math.max(0, remainingOf(r));
+          });
+          const subHead = (group.subs.length > 1 || sub.title !== group.title)
+            ? `<h3>${escapeHtml(sub.title)}</h3>`
+            : "";
+          return `<div class="pdf-sub">
+            ${subHead}
+            ${recs.map(reportLineHtml).join("")}
+            <div class="pdf-sub-total">Сальдо · ${escapeHtml(sub.title)}: <b>${escapeHtml(formatMoney(left))}</b>
+              <span>начислено ${escapeHtml(formatMoney(due))} · приход ${escapeHtml(formatMoney(paid))}</span>
+            </div>
+          </div>`;
+        }).filter(Boolean).join("");
+        if (!subBlocks) return "";
+        const groupLeft = group.subs.reduce((sum, sub) => (
+          sum + all.filter(sub.match).reduce((s, r) => s + Math.max(0, remainingOf(r)), 0)
+        ), 0);
+        return `<section class="pdf-group">
+          <h2>${escapeHtml(group.title)}</h2>
+          ${subBlocks}
+          <div class="pdf-group-total">Итоговое сальдо по группе «${escapeHtml(group.title)}»: ${escapeHtml(formatMoney(groupLeft))}</div>
+        </section>`;
+      }).filter(Boolean).join("");
+      return `
+        <header class="pdf-card">
+          <div class="pdf-brand">База Баляевой</div>
+          <h1>${escapeHtml(name)}</h1>
+          <p class="pdf-period">Период отчёта: ${escapeHtml(period)}</p>
+          <div class="pdf-current">
+            <div class="pdf-current-head"><span>Текущие долги</span><strong>${escapeHtml(formatMoney(live.total))}</strong></div>
+            ${rows.map(([label, amount]) => `<div class="pdf-current-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(formatMoney(amount))}</b></div>`).join("")}
+            <div class="pdf-current-saldo">Текущее общее сальдо <strong>${escapeHtml(formatMoney(t.saldo))}</strong></div>
+            ${ours ? `<div class="pdf-current-row"><span>Наш долг</span><b>${escapeHtml(formatMoney(ours))}</b></div>` : ""}
+          </div>
+        </header>
+        ${groupHtml || `<p class="pdf-empty">За выбранный период записей нет</p>`}
+        ${leftover.length ? `<section class="pdf-group">
+          <h2>Неразнесённые приходы</h2>
+          ${leftover.map((p) => {
+            const extra = [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
+            return `<div class="pdf-pay">Приход ${escapeHtml(formatDate(p.date))} · ${escapeHtml(formatMoney(p.amount))}${extra ? " · " + escapeHtml(extra) : ""}</div>`;
+          }).join("")}
+          <div class="pdf-group-total">Сумма неразнесённых приходов: ${escapeHtml(formatMoney(leftover.reduce((s, p) => s + (Number(p.amount) || 0), 0)))}</div>
+        </section>` : ""}
+      `;
+    }
+
+    function exportContractorPdf() {
+      const name = state.contractor;
+      if (!name) return;
+      const title = name + " · " + periodRangeLabel();
+      const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title>
+        <style>
+          @page { size: A4; margin: 14mm; }
+          body { font-family: "Segoe UI", Arial, sans-serif; color: #122033; margin: 0; }
+          h1 { font-size: 26px; margin: 0 0 6px; }
+          h2 { font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; margin: 22px 0 10px; border-bottom: 2px solid #122033; padding-bottom: 4px; }
+          h3 { font-size: 15px; margin: 14px 0 8px; }
+          .pdf-brand { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5b6b7c; }
+          .pdf-card { border: 1px solid #c5ccd6; border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; }
+          .pdf-period { color: #5b6b7c; margin: 0 0 12px; }
+          .pdf-current-head, .pdf-current-row, .pdf-current-saldo { display: flex; justify-content: space-between; gap: 12px; }
+          .pdf-current-head { font-size: 13px; color: #5b6b7c; }
+          .pdf-current-saldo { margin-top: 10px; padding-top: 8px; border-top: 1px solid #c5ccd6; font-size: 16px; }
+          .pdf-line { padding: 8px 0; border-bottom: 1px solid #e4e8ee; }
+          .pdf-line-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+          .pdf-calc { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0; font-size: 12px; }
+          .pdf-pay { font-size: 12px; color: #3d7a4a; margin-left: 2px; }
+          .pdf-pay.muted { color: #7b8794; }
+          .pdf-sub-total { margin: 8px 0 4px; font-size: 13px; }
+          .pdf-sub-total span { display: block; color: #5b6b7c; font-size: 12px; font-weight: 400; }
+          .pdf-group-total { margin-top: 10px; padding: 8px 10px; background: #f3f5f8; font-weight: 700; }
+          .pdf-empty { color: #5b6b7c; }
+        </style></head><body>${contractorPdfInnerHtml(name)}</body></html>`;
+      const w = window.open("", "_blank");
+      if (!w) {
+        showToast("Разрешите всплывающие окна. В печати выберите «Сохранить в PDF»");
+        return;
+      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      setTimeout(() => {
+        try { w.print(); } catch (err) { /* ignore */ }
+      }, 350);
     }
 
     function isBorrowed(r) {
@@ -4140,18 +4347,19 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         const meta = linked
           ? ("Сколько " + ownerName() + " должна вам")
           : (cfg.hasRental ? "Аренда и займы" : "Только займы");
-        const split = cfg.hasRental ? debitBreakdown(name) : null;
-        const splitHtml = split ? `
+        const split = currentDebtParts(name, { remaining: true });
+        const splitRows = currentDebtRows(name, split).filter(([, amount]) => amount > 0.009);
+        const splitHtml = (cfg.hasRental || split.total > 0.009) ? `
             <div class="card-split">
-              <div class="split-head"><span>Дебет</span><strong>${formatMoney(t.debit)}</strong></div>
-              ${debitBreakdownRows(name, split).map(([label, amount]) => (
+              <div class="split-head"><span>Текущие долги</span><strong>${formatMoney(split.total)}</strong></div>
+              ${splitRows.map(([label, amount]) => (
                 `<div class="split-row"><span>${label}</span><b>${formatMoney(amount)}</b></div>`
               )).join("")}
             </div>
         ` : "";
         const owedStats = linked ? `
               <div class="stat saldo-stat">
-                <div class="stat-label">Сальдо</div>
+                <div class="stat-label">Текущее сальдо</div>
                 <div class="stat-value ${cardSaldoClass}">${formatMoney(cardSaldo)}</div>
               </div>
               <div class="stat">
@@ -4168,7 +4376,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
               </div>
         ` : `
               <div class="stat">
-                <div class="stat-label">Сальдо</div>
+                <div class="stat-label">Текущее сальдо</div>
                 <div class="stat-value ${cardSaldoClass}">${formatMoney(cardSaldo)}</div>
               </div>
               <div class="stat">
@@ -4267,7 +4475,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const allTimeProfit = interestProfit(name);
       const allTimeLoss = interestLoss(name);
       const ours = ourDebt(name);
-      const split = cfg.hasRental ? debitBreakdown(name, true) : null;
+      const liveSplit = currentDebtParts(name, { remaining: true });
+      const split = (cfg.hasRental || liveSplit.total > 0.009) ? liveSplit : null;
       const rows = visibleRecords();
 
       const closedCount = paidCount(name);
@@ -4478,6 +4687,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ${renderSessionBar()}
         <div class="topbar">
           <button class="back-btn" id="back-home">← Назад</button>
+          <div class="topbar-actions">
+            <button type="button" class="back-btn" id="export-pdf">PDF за период</button>
+          </div>
         </div>
         <div class="profile-name ${hasOverdueDebt(name) ? "overdue" : ""}">${escapeHtml(name)}</div>
         <div class="profile-page-cue">${nameCuesHtml(name)}</div>
@@ -4502,7 +4714,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         <div class="summary">
           ${isLinkedOwnerCard(name) ? `
           <div class="summary-card saldo">
-            <div class="label">Сальдо</div>
+            <div class="label">Текущее сальдо</div>
             <div class="value ${ours ? "positive" : "zero"}">${formatMoney(ours)}</div>
           </div>
           <div class="summary-card saldo">
@@ -4539,7 +4751,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
             <div class="value">${formatMoney(t.credit)}</div>
           </div>
           <div class="summary-card saldo">
-            <div class="label">Сальдо</div>
+            <div class="label">Текущее сальдо</div>
             <div class="value ${saldoTone(t.saldo)}">${formatMoney(t.saldo)}</div>
           </div>
           <div class="summary-card">
@@ -4558,9 +4770,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         </div>
         ${split ? `
         <div class="debit-breakdown">
-          ${debitBreakdownRows(name, split).map(([label, amount]) => `
+          ${currentDebtRows(name, split).filter(([, amount]) => amount > 0.009).map(([label, amount]) => `
             <div class="item">
-              <div class="label">${label}</div>
+              <div class="label">Текущий долг · ${label}</div>
               <div class="value">${formatMoney(amount)}</div>
             </div>
           `).join("")}
@@ -4762,6 +4974,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         render();
       });
       document.getElementById("back-home")?.addEventListener("click", goHome);
+      document.getElementById("export-pdf")?.addEventListener("click", exportContractorPdf);
       document.getElementById("add-record")?.addEventListener("click", () => {
         if (isPaidTab()) openRecordModal(null, { repay: true });
         else openRecordModal();
