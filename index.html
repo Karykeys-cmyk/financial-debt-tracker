@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="84" />
+  <meta name="app-build" content="85" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=84" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=84" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=84" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=85" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=85" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=85" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1694,6 +1694,217 @@
       white-space: normal;
     }
 
+    #pdf-overlay {
+      padding: 0;
+      align-items: stretch;
+      justify-content: stretch;
+      z-index: 24;
+    }
+
+    .pdf-sheet {
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #0a1628;
+    }
+
+    .pdf-toolbar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+      background: #121f3a;
+      border-bottom: 1px solid rgba(74, 158, 255, 0.28);
+    }
+
+    .pdf-toolbar-title {
+      flex: 1 1 120px;
+      min-width: 0;
+      color: #b0c4de;
+      font-size: 0.92rem;
+    }
+
+    .pdf-toolbar .btn-primary,
+    .pdf-toolbar .btn-secondary {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+    }
+
+    .pdf-toolbar .btn-primary:disabled,
+    .pdf-toolbar .btn-secondary:disabled {
+      opacity: 0.7;
+    }
+
+    .pdf-scroll {
+      flex: 1 1 auto;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      background: #0a1628;
+    }
+
+    .pdf-doc {
+      width: 100%;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 12mm;
+      color: #ffffff;
+      box-sizing: border-box;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    .pdf-card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(74, 158, 255, 0.38);
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+    }
+
+    .pdf-brand {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #b0c4de;
+    }
+
+    .pdf-card h1 {
+      font-size: 28px;
+      margin: 6px 0 4px;
+      color: #ffffff;
+    }
+
+    .pdf-period {
+      color: #b0c4de;
+      margin: 0 0 14px;
+    }
+
+    .pdf-current-head,
+    .pdf-current-row,
+    .pdf-current-saldo {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .pdf-current-head {
+      font-size: 13px;
+      color: #b0c4de;
+    }
+
+    .pdf-current-head strong {
+      color: #6ec8ff;
+      font-size: 1.05rem;
+    }
+
+    .pdf-current-row {
+      margin-top: 6px;
+      color: #b0c4de;
+      font-size: 14px;
+    }
+
+    .pdf-current-row b { color: #ffffff; }
+
+    .pdf-current-saldo {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      font-size: 16px;
+    }
+
+    .pdf-current-saldo strong { color: #6ec8ff; }
+
+    .pdf-group {
+      margin-top: 14px;
+      padding: 14px 14px 12px;
+      border-radius: 14px;
+      background: rgba(74, 158, 255, 0.18);
+      border: 1px solid rgba(74, 158, 255, 0.32);
+    }
+
+    .pdf-group > h2 {
+      font-size: 22px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 12px;
+      color: #ffffff;
+    }
+
+    .pdf-sub {
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(176, 214, 255, 0.12);
+      border: 1px solid rgba(176, 214, 255, 0.22);
+      break-inside: avoid;
+    }
+
+    .pdf-sub h3 {
+      font-size: 15px;
+      margin: 0 0 8px;
+      color: #d6e8ff;
+    }
+
+    .pdf-line {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      break-inside: avoid;
+    }
+
+    .pdf-line-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .pdf-line-top strong { color: #ffffff; }
+    .pdf-line-top span { color: #b0c4de; }
+
+    .pdf-calc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 6px 0;
+      font-size: 12px;
+      color: #b0c4de;
+    }
+
+    .pdf-calc b { color: #ffffff; }
+    .pdf-pay { font-size: 12px; color: #5ee9a3; margin-left: 2px; }
+    .pdf-pay.muted { color: #8aa0b8; }
+
+    .pdf-sub-total {
+      margin: 8px 0 2px;
+      font-size: 13px;
+      color: #ffffff;
+    }
+
+    .pdf-sub-total span {
+      display: block;
+      color: #b0c4de;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .pdf-group-total {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(10, 22, 40, 0.5);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .pdf-empty { color: #b0c4de; }
+
     @media (max-width: 1100px) {
       .home-totals { grid-template-columns: 1fr 1fr; }
     }
@@ -1729,7 +1940,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=84" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=85" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2018,6 +2229,20 @@
     </form>
   </div>
 
+  <div class="overlay" id="pdf-overlay" role="dialog" aria-modal="true" aria-labelledby="pdf-toolbar-title">
+    <div class="pdf-sheet">
+      <div class="pdf-toolbar">
+        <button type="button" class="btn-secondary" id="pdf-close">Закрыть</button>
+        <div class="pdf-toolbar-title" id="pdf-toolbar-title">Отчёт PDF</div>
+        <button type="button" class="btn-secondary hidden" id="pdf-share">Поделиться</button>
+        <button type="button" class="btn-primary" id="pdf-download">Скачать на телефон</button>
+      </div>
+      <div class="pdf-scroll">
+        <div class="pdf-doc" id="pdf-doc"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="keyboard-fill" aria-hidden="true"></div>
   <div class="session-menu-list" id="session-menu-list" hidden role="menu"></div>
   <div class="toast" id="toast"></div>
@@ -2026,7 +2251,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "84";
+    const APP_BUILD = "85";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -3641,45 +3866,120 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       `;
     }
 
+    function pdfFileName(name) {
+      const period = periodRangeLabel().replace(/[\\/:*?"<>|]+/g, " ").trim();
+      return "База Баляевой — " + name + " — " + period + ".pdf";
+    }
+
+    function canSharePdfFile() {
+      try {
+        const file = new File(["%PDF"], "report.pdf", { type: "application/pdf" });
+        return Boolean(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+      } catch (err) {
+        return Boolean(navigator.share);
+      }
+    }
+
+    function loadHtml2Pdf() {
+      if (window.html2pdf) return Promise.resolve(window.html2pdf);
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "vendor/html2pdf.bundle.min.js";
+        script.onload = () => window.html2pdf ? resolve(window.html2pdf) : reject(new Error("html2pdf"));
+        script.onerror = () => {
+          const cdn = document.createElement("script");
+          cdn.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+          cdn.onload = () => window.html2pdf ? resolve(window.html2pdf) : reject(new Error("html2pdf"));
+          cdn.onerror = () => reject(new Error("html2pdf"));
+          document.head.appendChild(cdn);
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    function closePdfPreview() {
+      document.getElementById("pdf-overlay")?.classList.remove("open");
+    }
+
     function exportContractorPdf() {
       const name = state.contractor;
       if (!name) return;
       const title = name + " · " + periodRangeLabel();
-      const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title>
-        <style>
-          @page { size: A4; margin: 14mm; }
-          body { font-family: "Segoe UI", Arial, sans-serif; color: #122033; margin: 0; }
-          h1 { font-size: 26px; margin: 0 0 6px; }
-          h2 { font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; margin: 22px 0 10px; border-bottom: 2px solid #122033; padding-bottom: 4px; }
-          h3 { font-size: 15px; margin: 14px 0 8px; }
-          .pdf-brand { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5b6b7c; }
-          .pdf-card { border: 1px solid #c5ccd6; border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; }
-          .pdf-period { color: #5b6b7c; margin: 0 0 12px; }
-          .pdf-current-head, .pdf-current-row, .pdf-current-saldo { display: flex; justify-content: space-between; gap: 12px; }
-          .pdf-current-head { font-size: 13px; color: #5b6b7c; }
-          .pdf-current-saldo { margin-top: 10px; padding-top: 8px; border-top: 1px solid #c5ccd6; font-size: 16px; }
-          .pdf-line { padding: 8px 0; border-bottom: 1px solid #e4e8ee; }
-          .pdf-line-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
-          .pdf-calc { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0; font-size: 12px; }
-          .pdf-pay { font-size: 12px; color: #3d7a4a; margin-left: 2px; }
-          .pdf-pay.muted { color: #7b8794; }
-          .pdf-sub-total { margin: 8px 0 4px; font-size: 13px; }
-          .pdf-sub-total span { display: block; color: #5b6b7c; font-size: 12px; font-weight: 400; }
-          .pdf-group-total { margin-top: 10px; padding: 8px 10px; background: #f3f5f8; font-weight: 700; }
-          .pdf-empty { color: #5b6b7c; }
-        </style></head><body>${contractorPdfInnerHtml(name)}</body></html>`;
-      const w = window.open("", "_blank");
-      if (!w) {
-        showToast("Разрешите всплывающие окна. В печати выберите «Сохранить в PDF»");
-        return;
+      document.getElementById("pdf-toolbar-title").textContent = title;
+      document.getElementById("pdf-doc").innerHTML = contractorPdfInnerHtml(name);
+      const shareBtn = document.getElementById("pdf-share");
+      shareBtn.classList.toggle("hidden", !canSharePdfFile());
+      document.getElementById("pdf-overlay").classList.add("open");
+      document.querySelector("#pdf-overlay .pdf-scroll")?.scrollTo(0, 0);
+    }
+
+    async function buildContractorPdfBlob() {
+      const html2pdf = await loadHtml2Pdf();
+      const source = document.getElementById("pdf-doc");
+      if (!source || !source.innerHTML.trim()) throw new Error("empty");
+      const clone = source.cloneNode(true);
+      clone.id = "pdf-doc-print";
+      clone.style.width = "210mm";
+      clone.style.maxWidth = "210mm";
+      clone.style.padding = "12mm";
+      clone.style.boxSizing = "border-box";
+      clone.style.background = "#0a1628";
+      const host = document.createElement("div");
+      host.style.cssText = "position:fixed;left:-12000px;top:0;width:210mm;background:#0a1628;z-index:-1;";
+      host.appendChild(clone);
+      document.body.appendChild(host);
+      try {
+        return await html2pdf().set({
+          margin: 0,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#0a1628", windowWidth: 794 },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] }
+        }).from(clone).outputPdf("blob");
+      } finally {
+        host.remove();
       }
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-      w.focus();
-      setTimeout(() => {
-        try { w.print(); } catch (err) { /* ignore */ }
-      }, 350);
+    }
+
+    async function saveContractorPdf(share) {
+      const name = state.contractor;
+      if (!name) return;
+      const btn = document.getElementById(share ? "pdf-share" : "pdf-download");
+      const prev = btn ? btn.textContent : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Готовлю PDF…";
+      }
+      try {
+        const blob = await buildContractorPdfBlob();
+        const filename = pdfFileName(name);
+        const file = new File([blob], filename, { type: "application/pdf" });
+        if (share && navigator.share) {
+          const payload = { files: [file], title: filename };
+          if (!navigator.canShare || navigator.canShare(payload)) {
+            await navigator.share(payload);
+            return;
+          }
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        showToast("PDF сохранён. Если файл не появился — нажмите «Поделиться»");
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+        showToast("Не удалось собрать PDF. Проверьте интернет и попробуйте ещё раз");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      }
     }
 
     function isBorrowed(r) {
@@ -6428,11 +6728,18 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       closeSortAssign();
       closePayEdit();
       closeTrashModal();
+      closePdfPreview();
       closeSessionMenu();
       document.getElementById("confirm-overlay").classList.remove("open");
       state.pendingDelete = null;
     }
 
+    document.getElementById("pdf-close").addEventListener("click", closePdfPreview);
+    document.getElementById("pdf-download").addEventListener("click", () => saveContractorPdf(false));
+    document.getElementById("pdf-share").addEventListener("click", () => saveContractorPdf(true));
+    document.getElementById("pdf-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "pdf-overlay") closePdfPreview();
+    });
     document.getElementById("record-form").addEventListener("submit", submitRecord);
     document.getElementById("record-cancel").addEventListener("click", closeRecordModal);
     document.getElementById("field-category").addEventListener("change", () => {
