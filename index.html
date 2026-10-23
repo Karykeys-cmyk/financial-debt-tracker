@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="86" />
+  <meta name="app-build" content="87" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -4301,14 +4301,22 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       return r.category === currentCategory();
     }
 
+    function hasRecordSearch() {
+      return Boolean(String(state.recordSearch || "").trim());
+    }
+
     function visibleRecords() {
       const q = String(state.recordSearch || "").trim().toLowerCase();
       const paidTab = isPaidTab();
+      const searchAll = Boolean(q);
       return currentRecords()
         .filter((r) => r.type !== "Кредит")
-        .filter((r) => paidTab ? isFullyPaid(r) : !isFullyPaid(r))
         .filter((r) => {
-          if (!q && !paidTab && !matchesWorkCategory(r)) return false;
+          if (searchAll) return true;
+          return paidTab ? isFullyPaid(r) : !isFullyPaid(r);
+        })
+        .filter((r) => {
+          if (!searchAll && !paidTab && !matchesWorkCategory(r)) return false;
           if (state.paymentFilter !== "Все") {
             const methods = (r.payments || []).map((p) => p.paymentMethod || "");
             if (!methods.includes(state.paymentFilter)) return false;
@@ -4326,13 +4334,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           const db = b.date || b.issueDate || "";
           return db.localeCompare(da) || String(b.id || "").localeCompare(String(a.id || ""));
         });
-    }
-
-    function hiddenPaidSearchHint() {
-      if (isPaidTab()) return false;
-      const q = String(state.recordSearch || "").trim().toLowerCase();
-      if (!q) return false;
-      return debtRecords(state.contractor).some((r) => isFullyPaid(r) && recordMatchesSearch(r, q) && inSelectedPeriod(r));
     }
 
     function paymentToast(result, assigned) {
@@ -4676,7 +4677,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       if (!canEditBook()) return "";
       return `
             <div class="actions">
-              ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}" title="Внести выплату">Оплата</button>`}
+              ${isFullyPaid(r) ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}" title="Внести выплату">Оплата</button>`}
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" title="Открыть долг" aria-label="Открыть долг">✏️</button>
               <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" title="Удалить" aria-label="Удалить">🗑️</button>
             </div>`;
@@ -4922,7 +4923,7 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           <div class="row card-footer">
             <span class="actions">
               ${canEditBook() ? `
-              ${isPaidTab() ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>`}
+              ${isFullyPaid(r) ? "" : `<button class="text-btn" data-pay="${escapeHtml(r.id)}">Оплата</button>`}
               <button class="icon-btn" data-edit="${escapeHtml(r.id)}" aria-label="Открыть долг">✏️</button>
               <button class="icon-btn danger" data-delete="${escapeHtml(r.id)}" aria-label="Удалить">🗑️</button>` : ""}
             </span>
@@ -4939,11 +4940,8 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
       let emptyText = isPaidTab() ? "Выплаченных долгов пока нет" : "Открытых долгов нет";
       if (!rows.length) {
-        if (String(state.recordSearch || "").trim()) {
-          emptyText = hiddenPaidSearchHint()
-            ? "Этот долг уже выплачен — откройте вкладку «Выплачено»"
-            : "Нет записей по запросу";
-        } else if (tabRecords.length && state.paymentFilter !== "Все") emptyText = "Нет записей с таким способом оплаты";
+        if (hasRecordSearch()) emptyText = "Нет записей по запросу ни в одной вкладке";
+        else if (tabRecords.length && state.paymentFilter !== "Все") emptyText = "Нет записей с таким способом оплаты";
         else if (tabRecords.length) emptyText = "Нет записей за выбранный период";
       }
 
@@ -4967,12 +4965,12 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           </table>
         </div>
         <div class="mobile-list">${cards}</div>
-      ` : `<div class="empty">${emptyText}</div>`;
+      ` : (hasRecordSearch() ? "" : `<div class="empty">${emptyText}</div>`);
 
       const paymentFilter = `
         <div class="table-toolbar">
           <div class="toolbar-left">
-            <input type="search" id="filter-search" placeholder="${escapeHtml(isSortTab() ? "Поиск по выплатам без долга" : (isPaidTab() ? "Поиск по выплаченным" : (state.recordSearch.trim() ? "Поиск по открытым долгам" : "Поиск по записям")))}" value="${escapeHtml(state.recordSearch)}" />
+            <input type="search" id="filter-search" placeholder="Поиск по всем записям" value="${escapeHtml(state.recordSearch)}" />
             <button type="button" class="collapse-btn" id="toggle-records">${state.recordsCollapsed ? "Показать записи" : "Свернуть записи"}</button>
           </div>
           <div class="toolbar-right">
@@ -4999,7 +4997,9 @@ grant all on table public.finance_state to anon, authenticated, public;`;
           .slice()
           .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.id || "").localeCompare(a.id || ""));
         if (!items.length) {
-          sortBody = `<div class="empty">${q || state.paymentFilter !== "Все" ? "Нет выплат по фильтру" : "Все выплаты уже разнесены по долгам"}</div>`;
+          sortBody = hasRecordSearch()
+            ? ""
+            : `<div class="empty">${q || state.paymentFilter !== "Все" ? "Нет выплат по фильтру" : "Все выплаты уже разнесены по долгам"}</div>`;
         } else {
           const sortRows = items.map((p) => `
             <tr>
@@ -5144,12 +5144,16 @@ grant all on table public.finance_state to anon, authenticated, public;`;
         ` : ""}
         ${tabs}
         ${subtabs}
-        ${isSortTab() ? `<p class="sort-note">Временный список выплат, которые ещё не привязаны к долгу. Выберите долг для каждой — после разборки вкладку уберём.</p>` : ""}
+        ${isSortTab() && !hasRecordSearch() ? `<p class="sort-note">Временный список выплат, которые ещё не привязаны к долгу. Выберите долг для каждой — после разборки вкладку уберём.</p>` : ""}
+        ${hasRecordSearch() ? `<p class="sort-note">Ищем сразу по всем вкладкам: аренда, коммуналка, ДТФ, счета, займы и выплаченное. Период сверху по-прежнему учитывается.</p>` : ""}
         <div class="records-head">
           ${isSortTab() || !canEditBook() ? "" : `<button class="add-record" id="add-record">${isPaidTab() ? "➕ Внести выплату" : "➕ Добавить запись"}</button>`}
           ${paymentFilter}
         </div>
-        <div class="table-panel ${state.recordsCollapsed ? "hidden" : ""}">${isSortTab() ? sortBody : body}</div>
+        <div class="table-panel ${state.recordsCollapsed ? "hidden" : ""}">${(() => {
+          const panel = isSortTab() && !hasRecordSearch() ? sortBody : (hasRecordSearch() && isSortTab() ? body + sortBody : body);
+          return (panel && String(panel).trim()) ? panel : `<div class="empty">${emptyText}</div>`;
+        })()}</div>
         ${state.recordsCollapsed ? `<div class="empty">Записи свёрнуты</div>` : ""}
       `;
     }
