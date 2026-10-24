@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta http-equiv="Cache-Control" content="no-store" />
-  <meta name="app-build" content="90" />
+  <meta name="app-build" content="91" />
   <title>База Баляевой</title>
   <meta name="theme-color" content="#0a1628" />
   <meta name="theme-color" content="#0a1628" media="(prefers-color-scheme: light)" />
@@ -17,9 +17,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="База" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=90" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=90" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=90" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=91" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=91" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=91" />
   <style>
     :root {
       --bg-start: #0a1628;
@@ -1977,6 +1977,51 @@
 
     .pdf-empty { color: #b0c4de; }
 
+    .pdf-print-page {
+      width: 210mm;
+      height: 297mm;
+      min-height: 297mm;
+      max-height: 297mm;
+      padding: 12mm 12mm 16mm;
+      box-sizing: border-box;
+      background: #0a1628;
+      color: #ffffff;
+      overflow: hidden;
+      position: relative;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    .pdf-print-body {
+      height: 269mm;
+      max-height: 269mm;
+      overflow: hidden;
+    }
+
+    .pdf-print-page .pdf-group:first-child,
+    .pdf-print-body > .pdf-card:first-child {
+      margin-top: 0;
+    }
+
+    .pdf-print-foot {
+      position: absolute;
+      left: 12mm;
+      right: 12mm;
+      bottom: 6mm;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: #8aa0b8;
+    }
+
+    .pdf-group-start .pdf-cont {
+      font-size: 13px;
+      letter-spacing: 0;
+      text-transform: none;
+      color: #b0c4de;
+      font-weight: 600;
+    }
+
     @media (max-width: 1100px) {
       .home-totals { grid-template-columns: 1fr 1fr; }
     }
@@ -2020,7 +2065,7 @@
   <header class="brand-bar">
     <div class="brand-bar-plate">
       <div class="brand-bar-inner">
-        <img class="brand-logo" src="icons/logo.png?v=90" alt="База Баляевой" />
+        <img class="brand-logo" src="icons/logo.png?v=91" alt="База Баляевой" />
         <button type="button" class="sync-orb busy" id="sync-now" title="Синхронизация…" aria-label="Синхронизировать">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" d="M3.2 12a8.8 8.8 0 0 1 8.8-8.8 9.5 9.5 0 0 1 6.6 2.7L21 8.2"/>
@@ -2335,7 +2380,7 @@
     const STORAGE_KEY = "finansovyy-uchet-data";
     const SYNC_KEY = "finansovyy-uchet-sync";
     const SESSION_KEY = "finansovyy-uchet-session";
-    const APP_BUILD = "90";
+    const APP_BUILD = "91";
     const APP_RELOAD_KEY = "finansovyy-uchet-reload";
 
     async function ensureLatestApp() {
@@ -4013,44 +4058,256 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       });
     }
 
-    function pdfOffsetTop(el, root) {
-      return el.getBoundingClientRect().top - root.getBoundingClientRect().top;
+    function contractorPdfHeaderHtml(name) {
+      const html = contractorPdfInnerHtml(name);
+      const match = html.match(/<header[\s\S]*?<\/header>/);
+      return match ? match[0] : html;
     }
 
-    function layoutPdfPages(root, pageHmm) {
-      const width = root.getBoundingClientRect().width;
-      if (!width) return;
-      const px = width / 186;
-      const pageH = pageHmm * px;
-      const titleReserve = 40 * px;
-      const blocks = [...root.querySelectorAll(".pdf-card, .pdf-group-start, .pdf-keep, .pdf-line, .pdf-sub-total, .pdf-group-total, .pdf-empty, .pdf-pay")];
-      let page = 0;
-      blocks.forEach((el) => {
-        if (el.classList.contains("pdf-keep") && el.closest(".pdf-group-start")) return;
-        const height = el.getBoundingClientRect().height;
-        if (height > pageH - 1) return;
-        let top = pdfOffsetTop(el, root);
-        while (top >= (page + 1) * pageH - 0.5) page += 1;
-        const limit = (page + 1) * pageH;
-        const isTitle = el.classList.contains("pdf-group-start") || el.classList.contains("pdf-keep");
-        const startsLate = isTitle && top > limit - titleReserve;
-        const overflows = top + height > limit + 0.5;
-        if (!startsLate && !overflows) return;
-        const target = el.classList.contains("pdf-group-start") && el.closest(".pdf-group")
-          ? el.closest(".pdf-group")
-          : el;
-        const targetTop = pdfOffsetTop(target, root);
-        const nextTop = (page + 1) * pageH;
-        const gap = nextTop - targetTop;
-        if (gap < 2) return;
-        const spacer = document.createElement("div");
-        spacer.className = "pdf-page-gap";
-        spacer.setAttribute("aria-hidden", "true");
-        spacer.style.height = Math.max(2, gap) + "px";
-        spacer.style.background = "#0a1628";
-        target.parentNode.insertBefore(spacer, target);
-        page += 1;
+    function contractorPdfItems(name) {
+      const items = [{ kind: "header", html: contractorPdfHeaderHtml(name) }];
+      const groups = reportGroupDefs(name);
+      const all = debtRecords(name).filter(inSelectedPeriod);
+      const leftover = unsortedPayments(name).filter(inSelectedPeriod)
+        .slice()
+        .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+      groups.forEach((group) => {
+        const usedSubs = group.subs.filter((sub) => all.some(sub.match));
+        if (!usedSubs.length) return;
+        const groupLeft = usedSubs.reduce((sum, sub) => (
+          sum + all.filter(sub.match).reduce((s, r) => s + Math.max(0, remainingOf(r)), 0)
+        ), 0);
+        items.push({ kind: "group", title: group.title });
+        usedSubs.forEach((sub) => {
+          const recs = sortReportRecords(all.filter(sub.match));
+          if (!recs.length) return;
+          let due = 0;
+          let paid = 0;
+          let left = 0;
+          recs.forEach((r) => {
+            due += recordDue(r);
+            paid += paymentSum(r);
+            left += Math.max(0, remainingOf(r));
+          });
+          const showSub = group.subs.length > 1 || sub.title !== group.title;
+          items.push({ kind: "sub", title: showSub ? sub.title : "" });
+          recs.forEach((r) => items.push({ kind: "line", html: reportLineHtml(r) }));
+          items.push({
+            kind: "sub-total",
+            html: `<div class="pdf-sub-total">Сальдо · ${escapeHtml(sub.title)}: <b>${escapeHtml(formatMoney(left))}</b>
+              <span>начислено ${escapeHtml(formatMoney(due))} · приход ${escapeHtml(formatMoney(paid))}</span>
+            </div>`
+          });
+        });
+        items.push({
+          kind: "group-total",
+          html: `<div class="pdf-group-total">Итоговое сальдо по группе «${escapeHtml(group.title)}»: ${escapeHtml(formatMoney(groupLeft))}</div>`
+        });
       });
+      if (!groups.some((group) => group.subs.some((sub) => all.some(sub.match)))) {
+        items.push({ kind: "empty", html: `<p class="pdf-empty">За выбранный период записей нет</p>` });
+      }
+      if (leftover.length) {
+        items.push({ kind: "group", title: "Неразнесённые приходы" });
+        leftover.forEach((p) => {
+          const extra = [p.paymentMethod, p.comment].map((x) => String(x || "").trim()).filter(Boolean).join(" · ");
+          items.push({
+            kind: "line",
+            html: `<div class="pdf-pay">Приход ${escapeHtml(formatDate(p.date))} · ${escapeHtml(formatMoney(p.amount))}${extra ? " · " + escapeHtml(extra) : ""}</div>`
+          });
+        });
+        items.push({
+          kind: "group-total",
+          html: `<div class="pdf-group-total">Сумма неразнесённых приходов: ${escapeHtml(formatMoney(leftover.reduce((s, p) => s + (Number(p.amount) || 0), 0)))}</div>`
+        });
+      }
+      return items;
+    }
+
+    function pdfBoxHasRows(el) {
+      return Boolean(el && el.querySelector(".pdf-line, .pdf-pay, .pdf-sub-total, .pdf-group-total, .pdf-empty, .pdf-card"));
+    }
+
+    function createPdfPrintPage() {
+      const page = document.createElement("div");
+      page.className = "pdf-print-page";
+      const body = document.createElement("div");
+      body.className = "pdf-print-body";
+      page.appendChild(body);
+      return {
+        page,
+        body,
+        groupEl: null,
+        subEl: null,
+        groupTitle: "",
+        subTitle: "",
+        overflows() {
+          const cap = body.getBoundingClientRect();
+          if (cap.height < 8) return body.scrollHeight > body.clientHeight + 1;
+          const kids = [...body.querySelectorAll(":scope > *, .pdf-group > *, .pdf-sub > *")];
+          return kids.some((node) => node.getBoundingClientRect().bottom > cap.bottom + 1);
+        },
+        leftover() {
+          const cap = body.getBoundingClientRect();
+          const last = body.querySelector(":scope > :last-child");
+          if (!last) return cap.height || body.clientHeight || 0;
+          return cap.bottom - last.getBoundingClientRect().bottom;
+        }
+      };
+    }
+
+    function closePdfSub(box) {
+      box.subEl = null;
+      box.subTitle = "";
+    }
+
+    function closePdfGroup(box) {
+      closePdfSub(box);
+      box.groupEl = null;
+      box.groupTitle = "";
+    }
+
+    function openPdfGroup(box, title, continued) {
+      if (box.groupTitle === title && box.groupEl) return;
+      closePdfGroup(box);
+      const sec = document.createElement("section");
+      sec.className = "pdf-group";
+      sec.innerHTML = `<div class="pdf-group-start"><h2>${escapeHtml(title)}${continued ? ` <span class="pdf-cont">продолжение</span>` : ""}</h2></div>`;
+      box.body.appendChild(sec);
+      box.groupEl = sec;
+      box.groupTitle = title;
+    }
+
+    function openPdfSub(box, title) {
+      if (box.subEl && box.subTitle === title) return;
+      closePdfSub(box);
+      const sub = document.createElement("div");
+      sub.className = "pdf-sub";
+      if (title) sub.innerHTML = `<div class="pdf-keep"><h3>${escapeHtml(title)}</h3></div>`;
+      (box.groupEl || box.body).appendChild(sub);
+      box.subEl = sub;
+      box.subTitle = title;
+    }
+
+    function appendPdfNode(html, parent) {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = html.trim();
+      const node = wrap.children.length === 1 ? wrap.firstElementChild : wrap;
+      parent.appendChild(node);
+      return node;
+    }
+
+    function stripEmptyPdfTail(box) {
+      if (box.subEl && !pdfBoxHasRows(box.subEl)) {
+        box.subEl.remove();
+        closePdfSub(box);
+      }
+      if (box.groupEl && !pdfBoxHasRows(box.groupEl)) {
+        box.groupEl.remove();
+        closePdfGroup(box);
+        return true;
+      }
+      return false;
+    }
+
+    function buildPdfPrintPages(name) {
+      const host = document.createElement("div");
+      host.setAttribute("aria-hidden", "true");
+      host.style.cssText = "position:fixed;left:0;top:0;width:210mm;z-index:2;pointer-events:none;background:#0a1628;";
+      document.body.appendChild(host);
+      const pages = [];
+      const startPage = () => {
+        const box = createPdfPrintPage();
+        host.appendChild(box.page);
+        pages.push(box);
+        return box;
+      };
+      let box = startPage();
+      const items = contractorPdfItems(name);
+      let groupTitle = "";
+      let subTitle = "";
+      let inSub = false;
+
+      const newPage = (continueGroup) => {
+        const next = startPage();
+        if (continueGroup && groupTitle) {
+          openPdfGroup(next, groupTitle, true);
+          if (inSub) openPdfSub(next, subTitle);
+        }
+        box = next;
+        return next;
+      };
+
+      const ensureContext = (continued) => {
+        if (groupTitle && !box.groupEl) openPdfGroup(box, groupTitle, continued);
+        if (inSub && !box.subEl) openPdfSub(box, subTitle);
+      };
+
+      items.forEach((item) => {
+        if (item.kind === "header" || item.kind === "empty") {
+          const node = appendPdfNode(item.html, box.body);
+          if (box.overflows() && box.body.children.length > 1) {
+            node.remove();
+            newPage(false);
+            appendPdfNode(item.html, box.body);
+          }
+          return;
+        }
+        if (item.kind === "group") {
+          groupTitle = item.title;
+          subTitle = "";
+          inSub = false;
+          if (box.leftover() < 160) newPage(false);
+          openPdfGroup(box, groupTitle, false);
+          if (box.overflows()) {
+            box.groupEl.remove();
+            closePdfGroup(box);
+            newPage(false);
+            openPdfGroup(box, groupTitle, false);
+          }
+          return;
+        }
+        if (item.kind === "sub") {
+          subTitle = item.title;
+          inSub = true;
+          if (box.leftover() < 120) newPage(true);
+          openPdfSub(box, subTitle);
+          if (box.overflows()) {
+            if (box.subEl) box.subEl.remove();
+            closePdfSub(box);
+            const emptyGroup = stripEmptyPdfTail(box);
+            newPage(!emptyGroup);
+            ensureContext(!emptyGroup);
+            openPdfSub(box, subTitle);
+          }
+          return;
+        }
+        const parent = item.kind === "group-total"
+          ? (box.groupEl || box.body)
+          : (box.subEl || box.groupEl || box.body);
+        const node = appendPdfNode(item.html, parent);
+        if (box.overflows()) {
+          node.remove();
+          const emptyGroup = stripEmptyPdfTail(box);
+          if (emptyGroup) {
+            newPage(false);
+            ensureContext(false);
+          } else {
+            newPage(true);
+          }
+          const againParent = item.kind === "group-total"
+            ? (box.groupEl || box.body)
+            : (box.subEl || box.groupEl || box.body);
+          appendPdfNode(item.html, againParent);
+        }
+      });
+      pages.forEach((item, index) => {
+        const foot = document.createElement("div");
+        foot.className = "pdf-print-foot";
+        foot.textContent = (index + 1) + " / " + pages.length;
+        item.page.appendChild(foot);
+      });
+      return { host, pages: pages.map((item) => item.page) };
     }
 
     function strToPdfBytes(text) {
@@ -4084,8 +4341,6 @@ grant all on table public.finance_state to anon, authenticated, public;`;
     function buildA4PdfFromSlices(slices) {
       const pageW = mmToPt(210);
       const pageH = mmToPt(297);
-      const margin = mmToPt(12);
-      const innerW = mmToPt(186);
       const objects = [null];
       const add = (obj) => {
         objects.push(obj);
@@ -4096,13 +4351,11 @@ grant all on table public.finance_state to anon, authenticated, public;`;
       const pageRefs = [];
       slices.forEach((slice, index) => {
         const jpeg = dataUrlToBytes(slice.dataUrl);
-        const drawH = innerW * (slice.height / slice.width);
-        const y = pageH - margin - drawH;
         const imgId = add({
           dict: `<< /Type /XObject /Subtype /Image /Width ${slice.width} /Height ${slice.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>`,
           stream: jpeg
         });
-        const content = `q 0.03922 0.08627 0.15686 rg 0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)} re f Q\nq ${innerW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${margin.toFixed(2)} ${y.toFixed(2)} cm /Im${index} Do Q\n`;
+        const content = `q 0.03922 0.08627 0.15686 rg 0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)} re f Q\nq ${pageW.toFixed(2)} 0 0 ${pageH.toFixed(2)} 0 0 cm /Im${index} Do Q\n`;
         const contentBytes = strToPdfBytes(content);
         const contentId = add({
           dict: `<< /Length ${contentBytes.length} >>`,
@@ -4146,72 +4399,62 @@ grant all on table public.finance_state to anon, authenticated, public;`;
 
     async function capturePdfCanvas(el) {
       const html2pdf = await loadHtml2Pdf();
-      const width = Math.max(360, Math.round(el.getBoundingClientRect().width) || 703);
+      const rect = el.getBoundingClientRect();
+      const width = Math.max(360, Math.round(rect.width) || 794);
+      const height = Math.max(480, Math.round(rect.height) || 1123);
+      const opts = {
+        scale: isTouchPhone() ? 1.5 : 2,
+        useCORS: true,
+        backgroundColor: "#0a1628",
+        width,
+        height,
+        windowWidth: width,
+        windowHeight: height,
+        scrollX: 0,
+        scrollY: 0,
+        logging: false
+      };
       if (typeof window.html2canvas === "function") {
-        return window.html2canvas(el, {
-          scale: isTouchPhone() ? 1.4 : 2,
-          useCORS: true,
-          backgroundColor: "#0a1628",
-          width,
-          windowWidth: width,
-          scrollX: 0,
-          scrollY: 0
-        });
+        return window.html2canvas(el, opts);
       }
-      return html2pdf().set({
-        html2canvas: {
-          scale: isTouchPhone() ? 1.4 : 2,
-          useCORS: true,
-          backgroundColor: "#0a1628",
-          windowWidth: width,
-          scrollX: 0,
-          scrollY: 0
-        }
-      }).from(el).toCanvas().get("canvas");
+      return html2pdf().set({ html2canvas: opts }).from(el).toCanvas().get("canvas");
     }
 
     async function buildContractorPdfBlob() {
-      const source = document.getElementById("pdf-doc");
-      if (!source || !source.innerHTML.trim()) throw new Error("empty");
-      source.classList.remove("hidden");
-      const frame = document.getElementById("pdf-frame");
-      if (frame) frame.classList.add("hidden");
-      const prev = source.getAttribute("style") || "";
-      source.style.width = "186mm";
-      source.style.maxWidth = "186mm";
-      source.style.padding = "0";
-      source.style.margin = "0 auto";
-      source.style.background = "#0a1628";
-      source.querySelectorAll(".pdf-page-gap").forEach((node) => node.remove());
+      const name = state.contractor;
+      if (!name) throw new Error("empty");
+      const packed = buildPdfPrintPages(name);
       try {
-        layoutPdfPages(source, 273);
-        const canvas = await withTimeout(capturePdfCanvas(source), 28000);
-        if (!canvas || !canvas.width) throw new Error("canvas");
-        const pagePx = canvas.width * (273 / 186);
+        if (document.fonts && document.fonts.ready) {
+          await Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 800))]);
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const slices = [];
-        let y = 0;
-        while (y < canvas.height - 0.5) {
-          const h = Math.min(pagePx, canvas.height - y);
-          const slice = document.createElement("canvas");
-          slice.width = canvas.width;
-          slice.height = Math.max(1, Math.round(h));
-          const ctx = slice.getContext("2d");
-          ctx.fillStyle = "#0a1628";
-          ctx.fillRect(0, 0, slice.width, slice.height);
-          ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, slice.height);
-          slices.push({
-            dataUrl: slice.toDataURL("image/jpeg", 0.92),
-            width: slice.width,
-            height: slice.height
+        for (const page of packed.pages) {
+          packed.pages.forEach((other) => {
+            other.style.display = other === page ? "block" : "none";
           });
-          y += pagePx;
+          page.style.position = "relative";
+          page.offsetHeight;
+          const canvas = await withTimeout(capturePdfCanvas(page), 18000);
+          if (!canvas || !canvas.width) throw new Error("canvas");
+          const out = document.createElement("canvas");
+          out.width = canvas.width;
+          out.height = canvas.height;
+          const ctx = out.getContext("2d");
+          ctx.fillStyle = "#0a1628";
+          ctx.fillRect(0, 0, out.width, out.height);
+          ctx.drawImage(canvas, 0, 0);
+          slices.push({
+            dataUrl: out.toDataURL("image/jpeg", 0.93),
+            width: out.width,
+            height: out.height
+          });
         }
         if (!slices.length) throw new Error("pages");
         return buildA4PdfFromSlices(slices);
       } finally {
-        source.querySelectorAll(".pdf-page-gap").forEach((node) => node.remove());
-        if (prev) source.setAttribute("style", prev);
-        else source.removeAttribute("style");
+        packed.host.remove();
       }
     }
 
